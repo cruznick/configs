@@ -1,0 +1,4 @@
+#!/bin/bash
+notify-send seleccione ventana
+scrot -s -b -t 50% 'corte-%m-%d-%H-%M.png' -e 'mv $f ~/Imagenes/capturas/ && mv $m ~/Imagenes/mini/'
+notify-send listo 
