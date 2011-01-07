@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# ~/.xinitrc
+#
+# Executed by startx (run your window manager from here)
+#exec ck-launch-session gnome-session
+# exec startkde
+# exec startxfce4
+# ...or the Window Manager of your choice
+#exec ck-launch-session openbox-session
+
+if [[ $1 == "gnome" ]]
+then
+  exec ck-launch-session gnome-session
+elif [[ $1 == "obox" ]]
+then
+  exec ck-launch-session openbox-session
+elif [[ $1 == "xfce" ]]
+then
+  exec ck-launch-session startxfce4
+elif [[ $1 == "compiz" ]]
+then
+  exec ck-launch-session compiz.sh
+elif [[ $1 == "pekwm" ]]
+then
+  exec ck-launch-session pekwm
+elif [[ $1 == "fbox" ]]
+then
+  exec ck-launch-session startfluxbox
+else
+  echo "Choose a window manager"
+fi

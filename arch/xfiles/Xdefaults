@@ -1,0 +1,26 @@
+!URxvt Settings {
+URxvt*title:rxvt-unicode
+!URxvt*iconName:urxvt
+URxvt*termName:rxvt
+URxvt.perl-ext-common:  default,tabbed
+URxvt.geometry: 98x28  
+URxvt.buffered: true
+URxvt.foreground: white
+URxvt.underlineColor: green
+URxvt.font:xft:clean :pixelsize=12:antialias=true
+URxvt*scrollBar: false
+URxvt*externalBorder:1
+URxvt*internalBorder:1
+}
+
+!------------
+!True Transparency
+!------------
+!set to 32-bit for real transparency (compositing required (see xcompmgr)
+urxvt*depth:             32
+#transparent=0000 opaque=ffff
+urxvt*background: rgba:1111/1111/1111/dddd
+#urxvt*background: rgba:1111/1111/1111/0000
+
+
+

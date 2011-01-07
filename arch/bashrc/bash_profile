@@ -1,0 +1,9 @@
+. $HOME/.bashrc
+export DE=gnome
+export PATH=$PATH:/home/cruznick/.bin
+export BROWSER=chromium
+export EDITOR=gedit
+export PAGER=less
+
+
+
