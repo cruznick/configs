@@ -21,15 +21,6 @@ if which dbus-launch >/dev/null 2>&1 && test -z "$DBUS_SESSION_BUS_ADDRESS"; the
        eval `dbus-launch --sh-syntax --exit-with-session`
 fi
 
-# Make GTK apps look and behave how they were set up in the gnome config tools
-#if test -x /usr/libexec/gnome-settings-daemon >/dev/null; then
-#  /usr/libexec/gnome-settings-daemon &
-#elif which gnome-settings-daemon >/dev/null 2>&1; then
-#  gnome-settings-daemon &
-# Make GTK apps look and behave how they were set up in the XFCE config tools
-#elif which xfce-mcs-manager >/dev/null 2>&1; then
-#  xfce-mcs-manager n &
-#fi
 
 # Preload stuff for KDE apps
 if which start_kdeinit >/dev/null 2>&1; then
@@ -42,4 +33,23 @@ DESKTOP_ENV="OPENBOX"
 if which /usr/lib/openbox/xdg-autostart >/dev/null 2>&1; then
   /usr/lib/openbox/xdg-autostart $DESKTOP_ENV
 fi
-ob-autostart -d &
+
+###Start apps
+xcom set
+cp ~/.config/openbox/gtkrc-2.0  ~/.gtkrc-2.0 &
+tint2 &
+
+sleep 
+nitrogen --restore &
+thunar --daemon &
+
+sleep 3
+volwheel &
+
+sleep 1
+parcellite &
+python2 ~/bin/mpd_infos.py &
+tilda &
+sleep 2
+
+
