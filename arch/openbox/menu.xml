@@ -32,7 +32,7 @@
 		<item label="Captura">
 			<action name="Execute">
 				<execute>
-					/home/cruznick/Scripts/captura
+					/home/cruznick/bin/captura
 				</execute>
 			</action>
 		</item>
@@ -52,7 +52,7 @@
 		</item>
 		<separator/>
 		<menu execute="fav.pl" id="pipe-33129" label="Favoritos"/>
-		<menu execute="python2 ~/.bin/menu.py" id="apps-menu" label="Aplicaciones"/>
+		<menu execute="python2 ~/bin/menu.py" id="apps-menu" label="Aplicaciones"/>
 		<menu execute="disk.sh" id="pipe-38048" label="Disco"/>
 		<menu execute="mpd.sh" id="pipe-681231" label="Mpd"/>
 		<menu execute="/usr/bin/obfilebrowser '/'" id="browse" label="Carpetas "/>
@@ -130,7 +130,7 @@
 			<item label="Inicio">
 				<action name="Execute">
 					<execute>
-					ob-autostart
+						gedit ~/.config/openbox/autostart.sh
 					</execute>
 				</action>
 			</item>
