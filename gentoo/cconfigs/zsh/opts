@@ -1,0 +1,44 @@
+# options.zsh: Set Z-Shell options.
+autoload -U compinit
+compinit -i
+
+zmodload -i zsh/complist
+# Changing/making/removing directory
+setopt auto_name_dirs
+setopt auto_pushd
+setopt pushd_ignore_dups
+
+setopt auto_cd
+setopt multios
+setopt cdablevarS
+setopt prompt_subst
+## smart urls
+autoload -U url-quote-magic
+zle -N self-insert url-quote-magic
+
+## file rename magick
+bindkey "^[m" copy-prev-shell-word
+
+## jobs
+setopt long_list_jobs
+ # fixme - the load process here seems a bit bizarre
+
+unsetopt menu_complete   # do not autoselect the first completion entry
+unsetopt flowcontrol
+setopt auto_menu         # show completion menu on succesive tab press
+setopt complete_in_word
+setopt always_to_end
+
+setopt hist_ignore_dups # ignore duplication command history list
+setopt share_history # share command history data
+
+setopt hist_verify
+setopt inc_append_history
+setopt extended_history
+setopt hist_expire_dups_first
+setopt hist_ignore_space
+
+setopt SHARE_HISTORY
+setopt APPEND_HISTORY
+# correction
+setopt correctall
