@@ -1,0 +1,53 @@
+#Funciones y aliases especificos de archlinux 
+
+#Function to stop start restart daemons
+# Inicia, reinicia, termina y checa el status de los Daemons
+
+dstart() {
+	for arg in $@
+	do
+		_ rc.d start $arg
+	done
+}
+dstop() {
+	for arg in $@
+	do
+		_ rc.d stop $arg
+	done
+}
+drestart() {
+	for arg in $@
+	do
+		_ rc.d restart $arg
+	done
+}
+dstatus() {
+	for	arg in $@
+	do
+		_ rc.d status $arg
+	done
+}
+
+dlist() {
+	for arg in $@
+		do
+			rc.d list
+		done
+}
+
+###Alias
+pcman=pacman-color
+
+alias pacman='pacman-color'
+alias pacupd='_ $pcman -Syu'
+alias pacins='_ $pcman -S'
+alias pacser='_ $pcman -Ss'
+alias pacsin='_ $pcman -Qi'
+alias pacrda='_ $pcman -Rsn'
+alias pacrd='_ $pcman -Rd'
+
+alias mksource='makepkg --source -f ;alert'
+alias mkp='makepkg -sf ;alert'
+alias mkpi='makepkg -sfi ;alert'
+alias mkall='makepkg -sf && makepkg --source -f ;alert'
+alias mkalli='makepkg -sfi && makepkg --source -f ;alert'
