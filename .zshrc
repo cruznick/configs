@@ -39,7 +39,7 @@ DISABLE_UNTRACKED_FILES_DIRTY="true"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(
-  git
+  git textmate ruby nvm gem go gulp github vscode yarn
 )
 
 source $ZSH/oh-my-zsh.sh
