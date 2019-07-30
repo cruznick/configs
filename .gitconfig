@@ -1,0 +1,11 @@
+[user]
+	name = Benjamin J. Mtz
+	email = benjaminjmtz@gmail.com
+[color]
+	ui = auto
+[pack]
+	threads = 0
+[core]
+	excludesfile = /home/bjm/.gitignore_global
+	autocrlf = input
+	safecrlf = true
