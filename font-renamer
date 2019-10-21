@@ -1,0 +1,20 @@
+##################################################################################################
+# script from                                                                                    #
+# https://admcpr.com/2019/10/07/automating-the-patching-of-cascadia-code-to-include-nerd-fonts/  #
+##################################################################################################
+import fontforge
+
+name="bjm_fc"
+file_name="./{}.ttf".format(name)
+
+# Open the file
+delugia=fontforge.open(file_name)
+
+# Rename the file
+delugia.fontname=name
+delugia.familyname=name
+delugia.fullname=name
+delugia.copyright=""
+
+# Save
+delugia.generate(file_name)
