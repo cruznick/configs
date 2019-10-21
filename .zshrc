@@ -9,7 +9,7 @@
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/robbyrussell/oh-my-zsh/wiki/Themes
-ZSH_THEME="cruznick"
+ZSH_THEME="spaceship"
 
 # Uncomment the following line to enable command auto-correction.
 ENABLE_CORRECTION="true"
@@ -39,7 +39,7 @@ DISABLE_UNTRACKED_FILES_DIRTY="true"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(
-  git textmate ruby npm nvm gem go gulp github vscode yarn zsh-syntax-highlighting zsh-autosuggestions
+  git textmate ruby npm nvm gem go gulp github vscode yarn zsh-syntax-highlighting zsh-autosuggestions zsh-completions
 )
 
 source $ZSH/oh-my-zsh.sh
@@ -134,8 +134,8 @@ alias rd=rmdir
 alias d='dirs -v'
 
 # mkdir & cd to it
-function mcd() { 
-  mkdir -p "$1" && cd "$1"; 
+function mcd() {
+  mkdir -p "$1" && cd "$1";
 }
 
 export NVM_DIR="$HOME/.nvm"
@@ -148,3 +148,5 @@ export PATH="$PATH:$HOME/.rvm/bin"
 # Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
 export PATH="$PATH:$HOME/.rvm/bin"
 export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
+
+export N_PREFIX="$HOME/n"; [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"  # Added by n-install (see http://git.io/n-install-repo).
