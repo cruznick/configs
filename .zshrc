@@ -138,6 +138,8 @@ function mcd() {
   mkdir -p "$1" && cd "$1";
 }
 
+## Paths
+
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
@@ -150,4 +152,7 @@ export PATH="$PATH:$HOME/.rvm/bin"
 export PATH="$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH"
 
 export N_PREFIX="$HOME/n"; [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"  # Added by n-install (see http://git.io/n-install-repo).
+
+### Liquidbase
+export PATH="$PATH:$HOME/Bin/liquibase-3.8.5"
 emulate sh -c 'source /etc/profile.d/apps-bin-path.sh'
