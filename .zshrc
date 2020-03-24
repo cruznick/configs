@@ -39,7 +39,7 @@ DISABLE_UNTRACKED_FILES_DIRTY="true"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(
-  git textmate ruby npm nvm gem go gulp github vscode yarn zsh-syntax-highlighting zsh-autosuggestions zsh-completions
+  git textmate ruby npm zsh-nvm gem go gulp github vscode yarn zsh-syntax-highlighting zsh-autosuggestions zsh-completions
 )
 
 source $ZSH/oh-my-zsh.sh
@@ -132,6 +132,8 @@ cd () {
 alias md='mkdir -p'
 alias rd=rmdir
 alias d='dirs -v'
+alias nodelts='nvm use --lts'
+alias nodelatest='nvm use node'
 
 # mkdir & cd to it
 function mcd() {
