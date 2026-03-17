@@ -1,0 +1,7 @@
+[user]
+  name       = {{ .name | quote }}
+  email      = {{ .workEmail | quote }}
+  signingkey = ~/.ssh/signing-pubs/work-gh.pub
+
+[url "git@github.com-kavak:"]
+  insteadOf = git@github.com:

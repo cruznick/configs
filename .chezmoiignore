@@ -1,0 +1,26 @@
+# Legacy directory — historical configs, not managed by chezmoi
+legacy/**
+legacy/
+
+# Documentation only
+docs/**
+docs/
+
+# Company config fragments — sourced by templates, not deployed directly
+companies/**
+companies/
+
+# chezmoi internal
+.chezmoidata/**
+.chezmoitemplates/**
+.chezmoiscripts/**
+.chezmoiignore
+.chezmoi.toml.tmpl
+
+# Repo files
+install.sh
+README.md
+LICENSE
+
+# macOS
+.DS_Store

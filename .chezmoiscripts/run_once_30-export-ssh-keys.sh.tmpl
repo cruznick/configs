@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# run_once_30-export-ssh-keys.sh — Export SSH public keys from 1Password
+set -euo pipefail
+
+VAULT="GitKeys"
+PUB_DIR="$HOME/.ssh/signing-pubs"
+mkdir -p "$PUB_DIR"
+chmod 700 "$PUB_DIR"
+
+command -v op >/dev/null 2>&1 || { echo "op CLI not found. Install 1password-cli first."; exit 1; }
+op whoami >/dev/null 2>&1    || { echo "1Password locked. Run: op signin"; exit 1; }
+
+export_key() {
+  local item="$1" outfile="$2"
+  op item get "$item" --vault "$VAULT" --fields "public key" > "$outfile"
+  chmod 644 "$outfile"
+  echo "Exported: $outfile"
+}
+
+# Personal
+export_key "ssh-sign-personal-gl" "$PUB_DIR/personal-gl.pub"
+export_key "ssh-sign-personal-gh" "$PUB_DIR/personal-gh.pub"
+
+# Work — one entry per company × platform
+{{ range $slug, $co := .companies -}}
+{{ range $co.platforms -}}
+export_key "ssh-sign-{{ default $slug $co.ssh_key_prefix }}-{{ . }}" "$PUB_DIR/work-{{ . }}.pub"
+{{ end -}}
+{{ end -}}
+
+echo "✅ SSH public keys exported to $PUB_DIR"

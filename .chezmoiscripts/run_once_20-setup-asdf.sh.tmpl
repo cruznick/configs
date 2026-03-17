@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# run_once_20-setup-asdf.sh — Install asdf tool versions
+set -euo pipefail
+
+{{ if ne .chezmoi.os "darwin" -}}
+echo "Skipping: not macOS"
+exit 0
+{{ end -}}
+
+ASDF_INIT="/opt/homebrew/opt/asdf/libexec/asdf.sh"
+[[ -f "$ASDF_INIT" ]] && source "$ASDF_INIT" || { echo "asdf not found; run brew install first"; exit 1; }
+
+add_plugin() {
+  local name="$1" url="$2"
+  asdf plugin list | grep -qx "$name" || asdf plugin add "$name" "$url"
+}
+
+add_plugin nodejs    https://github.com/asdf-vm/asdf-nodejs.git
+add_plugin python    https://github.com/asdf-community/asdf-python.git
+add_plugin golang    https://github.com/asdf-community/asdf-golang.git
+add_plugin terraform https://github.com/asdf-community/asdf-hashicorp.git
+add_plugin kubectl   https://github.com/asdf-community/asdf-kubectl.git
+add_plugin helm      https://github.com/Antiarchitect/asdf-helm.git
+
+# Install versions from ~/.tool-versions (chezmoi will deploy that file)
+asdf install
+
+# Node: enable corepack
+command -v corepack >/dev/null && corepack enable || true
+
+echo "✅ asdf tool versions installed"

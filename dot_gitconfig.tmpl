@@ -1,0 +1,65 @@
+[pull]
+  rebase = true
+
+[core]
+  excludesfile = ~/.gitignore
+  editor = nano
+
+[diff]
+  external = difft
+
+[filter "lfs"]
+  clean    = git-lfs clean -- %f
+  smudge   = git-lfs smudge -- %f
+  process  = git-lfs filter-process
+  required = true
+
+[gpg]
+  format = ssh
+
+[gpg "ssh"]
+  program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+
+[commit]
+  gpgsign = true
+
+[tag]
+  gpgSign = true
+
+[alias]
+  permission-reset = !git diff -p -R --no-ext-diff --no-color | grep -E "^(diff|(old|new) mode)" --color=never | git apply
+  p    = !git push -u origin $(git rev-parse --abbrev-ref HEAD)
+  st   = status -sb
+  ll   = log --oneline
+  last = log -1 HEAD --stat
+  cm   = commit -v -m
+  gl   = config --global -l
+  up   = !git fetch --all --prune && git rebase
+  gl-mr  = !glab-auto mr create --yes --push --remove-source-branch -f -t
+  gl-mrd = !glab-auto mr update --draft
+  gl-mrr = !glab-auto mr update --ready
+  gh-mr  = !gh pr create
+  df   = diff
+
+# ── Personal identities ───────────────────────────────────────────────────────
+[includeIf "gitdir:~/repos/personal/gl/"]
+  path = ~/.gitconfig-personal-gl
+
+[includeIf "gitdir:~/repos/personal/gh/"]
+  path = ~/.gitconfig-personal-gh
+
+# ── Work identities (new company-namespaced paths) ───────────────────────────
+{{ range $slug, $co := .companies -}}
+{{ range $co.platforms -}}
+[includeIf "gitdir:~/repos/work/{{ . }}/{{ $slug }}/"]
+  path = ~/.gitconfig-work-{{ $slug }}-{{ . }}
+
+{{ end -}}
+{{ end -}}
+
+# ── Legacy work paths (transition — remove once repos are migrated) ───────────
+[includeIf "gitdir:~/repos/work/gl/"]
+  path = ~/.gitconfig-work-kavak-gl
+
+[includeIf "gitdir:~/repos/work/gh/"]
+  path = ~/.gitconfig-work-kavak-gh

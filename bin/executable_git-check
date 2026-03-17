@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="${1:-.}"
+
+echo "Repo: $repo"
+cd "$repo"
+
+echo "user.name:      $(git config user.name)"
+echo "user.email:     $(git config user.email)"
+echo "user.signingkey:$(git config user.signingkey)"
+echo "gpg.format:     $(git config gpg.format)"
+echo "gpg.ssh.program:$(git config gpg.ssh.program)"
+echo "commit.gpgsign: $(git config commit.gpgsign)"

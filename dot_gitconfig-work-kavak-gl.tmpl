@@ -1,0 +1,10 @@
+[user]
+  name       = {{ .name | quote }}
+  email      = {{ .workEmail | quote }}
+  signingkey = ~/.ssh/signing-pubs/work-gl.pub
+
+[url "git@gitlab.com-kavak:"]
+  insteadOf = git@gitlab.com:
+
+[gitlab]
+  config_dir = {{ .chezmoi.homeDir }}/.config/glab-work

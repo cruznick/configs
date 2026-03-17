@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# run_once_10-install-brew.sh — Install Homebrew packages
+# Runs once; re-runs automatically if this file changes.
+set -euo pipefail
+
+{{ if ne .chezmoi.os "darwin" -}}
+echo "Skipping brew install: not macOS"
+exit 0
+{{ end -}}
+
+log() { printf "\n\033[1;34m==> %s\033[0m\n" "$*"; }
+
+command -v brew >/dev/null 2>&1 || { echo "Homebrew not found. Run install.sh first."; exit 1; }
+
+log "brew update"
+brew update
+
+# ── Core shell tools ──────────────────────────────────────────────────────────
+brew install --formula \
+  git jq yq ripgrep fd bat eza zoxide starship fzf \
+  neovim tree
+
+# ── DevOps tools ──────────────────────────────────────────────────────────────
+brew install --formula \
+  awscli kubectl kubectx helm k9s stern \
+  terraform pulumi \
+  asdf uv pnpm \
+  glab gh difftastic \
+  session-manager-plugin
+
+# ── Containers ────────────────────────────────────────────────────────────────
+brew install --formula \
+  colima docker docker-compose buildkit docker-completion
+
+# ── HashiCorp vault ───────────────────────────────────────────────────────────
+brew tap hashicorp/tap 2>/dev/null || true
+brew install hashicorp/tap/vault || brew upgrade hashicorp/tap/vault || true
+
+# ── GUI apps ──────────────────────────────────────────────────────────────────
+log "Installing GUI apps (casks)"
+brew install --cask \
+  1password 1password-cli \
+  cursor ghostty \
+  slack google-chrome \
+  openlens raycast
+
+# ── fzf shell integration (no rc changes — chezmoi manages zshrc) ─────────────
+if [[ -x "$(brew --prefix)/opt/fzf/install" ]]; then
+  "$(brew --prefix)/opt/fzf/install" --key-bindings --completion --no-update-rc >/dev/null 2>&1 || true
+fi
+
+echo "✅ brew packages installed"

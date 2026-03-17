@@ -1,0 +1,14 @@
+{{- $name := promptStringOnce . "name" "Full name" -}}
+{{- $workEmail := promptStringOnce . "workEmail" "Work email" -}}
+{{- $personalEmail := promptStringOnce . "personalEmail" "Personal email" -}}
+{{- $workCompany := promptStringOnce . "workCompany" "Work company slug (e.g. kavak, birdie)" -}}
+{{- $githubPersonal := promptStringOnce . "githubPersonal" "Personal GitHub username" -}}
+{{- $artifactoryUser := promptStringOnce . "artifactoryUser" "Artifactory username (leave blank if not applicable)" -}}
+
+[data]
+  name             = {{ $name | quote }}
+  workEmail        = {{ $workEmail | quote }}
+  personalEmail    = {{ $personalEmail | quote }}
+  workCompany      = {{ $workCompany | quote }}
+  githubPersonal   = {{ $githubPersonal | quote }}
+  artifactoryUser  = {{ $artifactoryUser | quote }}

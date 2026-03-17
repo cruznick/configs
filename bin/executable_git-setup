@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Creates 4 SSH keys INSIDE 1Password and exports their public keys
+# to ~/.ssh/signing-pubs for Git's user.signingkey per-scope config.
+
+log(){ printf "\n==> %s\n" "$*"; }
+
+: "${OP_VAULT:=zmx6evux6msidifmmgwxfq3wju}"   # change to your vault name if needed
+PUB_DIR="${HOME}/.ssh/signing-pubs"
+mkdir -p "$PUB_DIR"
+chmod 700 "${HOME}/.ssh" 2>/dev/null || true
+chmod 700 "$PUB_DIR"
+
+need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing $1"; exit 1; }; }
+need op
+need git
+
+# Sign in (will no-op if already signed in)
+# You can also do: eval "$(op signin)" manually if your environment requires it.
+op whoami >/dev/null 2>&1 || { log "Please sign in: op signin"; exit 1; }
+
+create_key () {
+  local title="$1"
+  local out_pub="$2"
+
+  # If item exists, skip creation
+  if op item get "$title" --vault "$OP_VAULT" >/dev/null 2>&1; then
+    echo "1Password item exists: $title"
+  else
+    log "Creating SSH key in 1Password: $title (vault: $OP_VAULT)"
+    op item create --category ssh --title "$title" --vault "$OP_VAULT" >/dev/null
+  fi
+
+  # Export public key from the item
+  log "Exporting public key -> $out_pub"
+  # Field name can vary by item; this approach is commonly used:
+  # `op item get <item> --fields 'public key'`
+  op item get "$title" --vault "$OP_VAULT" --fields "public key" > "$out_pub"
+  chmod 644 "$out_pub"
+}
+
+create_key "ssh-sign-work-gl"     "${PUB_DIR}/work-gl.pub"
+create_key "ssh-sign-work-gh"     "${PUB_DIR}/work-gh.pub"
+create_key "ssh-sign-personal-gl" "${PUB_DIR}/personal-gl.pub"
+create_key "ssh-sign-personal-gh" "${PUB_DIR}/personal-gh.pub"
+
+log "Done. Public keys saved in: ${PUB_DIR}"
+echo "Next: add each public key to the matching GitHub/GitLab account as a SIGNING key."

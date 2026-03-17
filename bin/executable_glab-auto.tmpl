@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# glab-auto — Routes glab CLI to the correct config dir based on CWD.
+# Managed by chezmoi. Edit source: bin/executable_glab-auto.tmpl
+set -euo pipefail
+
+{{- $home := .chezmoi.homeDir }}
+WORK_DIR="{{ $home }}/repos/work/gl"
+PERS_DIR="{{ $home }}/repos/personal/gl"
+
+case "${PWD}/" in
+  # New company-namespaced paths
+  {{ range $slug, $co := .companies -}}
+  {{ if has "gl" $co.platforms -}}
+  "${WORK_DIR}/{{ $slug }}/"*)
+    export GLAB_CONFIG_DIR="{{ $home }}/.config/glab-{{ $slug }}"
+    ;;
+  {{ end -}}
+  {{ end -}}
+  # Personal GitLab
+  "${PERS_DIR}/"*)
+    export GLAB_CONFIG_DIR="{{ $home }}/.config/glab-personal"
+    ;;
+  # Legacy flat path (transition — kavak repos not yet migrated to work/gl/kavak/)
+  "${WORK_DIR}/"*)
+    export GLAB_CONFIG_DIR="{{ $home }}/.config/glab-work"
+    ;;
+  *)
+    # Leave GLAB_CONFIG_DIR unset — use default
+    ;;
+esac
+
+exec glab "$@"

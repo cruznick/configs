@@ -1,0 +1,21 @@
+# 1Password SSH agent — managed by chezmoi
+# Edit source: dot_config/1Password/ssh/agent.toml.tmpl
+
+# Personal keys
+[[ssh-keys]]
+vault = "GitKeys"
+item  = "ssh-sign-personal-gl"
+
+[[ssh-keys]]
+vault = "GitKeys"
+item  = "ssh-sign-personal-gh"
+
+# Work keys — one entry per company × platform
+{{ range $slug, $co := .companies -}}
+{{ range $co.platforms -}}
+[[ssh-keys]]
+vault = "GitKeys"
+item  = "ssh-sign-{{ default $slug $co.ssh_key_prefix }}-{{ . }}"
+
+{{ end -}}
+{{ end -}}

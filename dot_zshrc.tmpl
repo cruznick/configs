@@ -1,0 +1,233 @@
+# =============================================================================
+# Benjamin's .zshrc — managed by chezmoi
+# Edit source: ~/repos/personal/gh/configs/dot_zshrc.tmpl
+# Apply changes: chezmoi apply
+# =============================================================================
+
+# =============================================================================
+# BASIC ENV
+# =============================================================================
+export EDITOR="code"
+export VISUAL="code"
+
+# Detect OS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  export OS=macos
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  export OS=linux
+else
+  export OS=unknown
+fi
+
+# =============================================================================
+# HOMEBREW (macOS)
+# =============================================================================
+if [[ -f "/opt/homebrew/bin/brew" ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
+# Prefer Homebrew git on macOS if present
+if [[ -d "/opt/homebrew/opt/git/bin" ]]; then
+  export PATH="/opt/homebrew/opt/git/bin:$PATH"
+fi
+
+# =============================================================================
+# ZINIT
+# =============================================================================
+ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+
+if [[ ! -d "$ZINIT_HOME" ]]; then
+  mkdir -p "$(dirname "$ZINIT_HOME")"
+  git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+fi
+
+source "${ZINIT_HOME}/zinit.zsh"
+
+zinit light zsh-users/zsh-syntax-highlighting
+zinit light zsh-users/zsh-completions
+zinit light zsh-users/zsh-autosuggestions
+zinit light Aloxaf/fzf-tab
+
+zinit snippet OMZL::git.zsh
+zinit snippet OMZP::git
+zinit snippet OMZP::sudo
+zinit snippet OMZP::vscode
+zinit snippet OMZP::aws
+zinit snippet OMZP::kubectl
+zinit snippet OMZP::kubectx
+zinit snippet OMZP::docker
+zinit snippet OMZP::colored-man-pages
+zinit snippet OMZP::command-not-found
+
+autoload -Uz compinit && compinit
+zinit cdreplay -q
+
+# =============================================================================
+# PROMPT
+# =============================================================================
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+command -v starship >/dev/null && eval "$(starship init zsh)"
+
+# =============================================================================
+# KEYBINDINGS
+# =============================================================================
+bindkey -e
+bindkey '^p' history-search-backward
+bindkey '^n' history-search-forward
+bindkey '^[w' kill-region
+
+# Fix Home/End keys
+if (( ${+terminfo[khome]} )); then bindkey "${terminfo[khome]}" beginning-of-line; fi
+if (( ${+terminfo[kend]}  )); then bindkey "${terminfo[kend]}"  end-of-line;       fi
+bindkey '^[[H' beginning-of-line
+bindkey '^[[F' end-of-line
+
+# =============================================================================
+# HISTORY
+# =============================================================================
+HISTSIZE=50000
+SAVEHIST=$HISTSIZE
+HISTFILE=~/.zsh_history
+
+setopt appendhistory sharehistory hist_ignore_space hist_ignore_all_dups \
+       hist_save_no_dups hist_ignore_dups hist_find_no_dups
+
+# =============================================================================
+# OPTS
+# =============================================================================
+setopt auto_cd auto_name_dirs auto_pushd pushd_ignore_dups
+
+# =============================================================================
+# COMPLETION STYLING
+# =============================================================================
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+zstyle ':completion:*' menu no
+
+# =============================================================================
+# ALIASES — better defaults
+# =============================================================================
+if command -v eza >/dev/null; then
+  alias ls='eza --group-directories-first --git'
+  alias ll='eza -lah --group-directories-first --git'
+else
+  alias ls='ls -G'
+  alias ll='ls -lahG'
+fi
+
+alias vim='nvim'
+alias c='clear'
+
+# DevOps shortcuts
+alias k='kubectl'
+alias kgp='kubectl get pods'
+alias kgs='kubectl get svc'
+alias kgn='kubectl get nodes'
+alias kctx='kubectx'
+alias kns='kubens'
+alias tf='terraform'
+alias pu='pulumi'
+alias g='git'
+alias awswho='aws sts get-caller-identity'
+
+# Colima
+alias col='colima'
+alias colstart='colima start'
+alias colstop='colima stop'
+alias cold='colima delete'
+
+# AI CLIs
+alias cc='claude'
+alias cx='codex'
+
+# =============================================================================
+# FZF
+# =============================================================================
+command -v fzf >/dev/null && eval "$(fzf --zsh)"
+[[ -f ~/.fzf.zsh ]] && source ~/.fzf.zsh
+
+if command -v eza >/dev/null; then
+  zstyle ':fzf-tab:complete:cd:*'          fzf-preview 'eza -lah --git $realpath'
+  zstyle ':fzf-tab:complete:__zoxide_z:*'  fzf-preview 'eza -lah --git $realpath'
+else
+  zstyle ':fzf-tab:complete:cd:*'          fzf-preview 'ls -lahG $realpath'
+  zstyle ':fzf-tab:complete:__zoxide_z:*'  fzf-preview 'ls -lahG $realpath'
+fi
+
+# =============================================================================
+# ZOXIDE
+# =============================================================================
+command -v zoxide >/dev/null && eval "$(zoxide init zsh)"
+
+# =============================================================================
+# NAVIGATION
+# =============================================================================
+cd() {
+  case "$*" in
+    "...")    [ -d ../.. ]      && builtin cd ../.. ;;
+    "....")   [ -d ../../.. ]   && builtin cd ../../.. ;;
+    ".....")  [ -d ../../../.. ] && builtin cd ../../../.. ;;
+    *)        builtin cd "$@" ;;
+  esac
+}
+mcd() { mkdir -p "$1" && cd "$1"; }
+alias md='mkdir -p'
+alias rd='rmdir'
+alias d='dirs -v'
+
+# =============================================================================
+# ASDF (version manager)
+# =============================================================================
+if [[ -f "/opt/homebrew/opt/asdf/libexec/asdf.sh" ]]; then
+  source "/opt/homebrew/opt/asdf/libexec/asdf.sh"
+fi
+export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
+
+# =============================================================================
+# NODE / PNPM
+# =============================================================================
+export PNPM_HOME="$HOME/Library/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+
+# =============================================================================
+# GO (gvm optional)
+# =============================================================================
+[[ -s "$HOME/.gvm/scripts/gvm" ]] && source "$HOME/.gvm/scripts/gvm"
+
+# =============================================================================
+# 1PASSWORD SSH AGENT
+# =============================================================================
+export SSH_AUTH_SOCK="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+
+# =============================================================================
+# PATH
+# =============================================================================
+export PATH="$PATH:$HOME/bin"
+
+# =============================================================================
+# GLAB helpers (work / personal)
+# =============================================================================
+glab-work() {
+  GLAB_CONFIG_DIR="$HOME/.config/glab-work" glab "$@"
+}
+
+glab-personal() {
+  GLAB_CONFIG_DIR="$HOME/.config/glab-personal" glab "$@"
+}
+
+# =============================================================================
+# COMPANY CONFIG
+# Sources ~/.zshrc.d/<company>.zsh if present (managed per company)
+# =============================================================================
+COMPANY_RC="$HOME/.zshrc.d/{{ .workCompany }}.zsh"
+[[ -f "$COMPANY_RC" ]] && source "$COMPANY_RC"
+
+# Always source personal extras if present
+[[ -f "$HOME/.zshrc.d/personal.zsh" ]] && source "$HOME/.zshrc.d/personal.zsh"
+
+# =============================================================================
+# SECRETS (lazy-loaded from 1Password)
+# =============================================================================
+[[ -f "$HOME/.secrets.zsh" ]] && source "$HOME/.secrets.zsh"
