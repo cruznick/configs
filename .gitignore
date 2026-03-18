@@ -1,0 +1,10 @@
+# Local machine config — contains company name, never commit
+.chezmoidata/companies.toml
+
+# direnv — local only, contains real 1Password references
+# Only .envrc.example is committed (structure reference)
+.envrc
+
+# Per-session secrets — local only
+.secrets.d/
+.claude/

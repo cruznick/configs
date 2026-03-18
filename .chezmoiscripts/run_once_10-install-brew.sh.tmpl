@@ -21,11 +21,13 @@ brew install --formula \
   neovim tree
 
 # ── DevOps tools ──────────────────────────────────────────────────────────────
+# Note: terraform and kubectl are managed by asdf (avoids shim conflicts with brew versions)
 brew install --formula \
-  awscli kubectl kubectx helm k9s stern \
-  terraform pulumi \
+  awscli kubectx helm k9s stern \
+  pulumi \
   asdf uv pnpm \
   glab gh difftastic \
+  direnv \
   session-manager-plugin
 
 # ── Containers ────────────────────────────────────────────────────────────────
@@ -49,4 +51,10 @@ if [[ -x "$(brew --prefix)/opt/fzf/install" ]]; then
   "$(brew --prefix)/opt/fzf/install" --key-bindings --completion --no-update-rc >/dev/null 2>&1 || true
 fi
 
-echo "✅ brew packages installed"
+echo ""
+echo "✅ run_once_10: brew packages installed"
+echo ""
+echo "⚡ Next steps:"
+echo "  - terraform and kubectl are managed by asdf (run_once_20 handles install)"
+echo "  - direnv installed — hook added to ~/.zshrc automatically"
+echo "  - direnv-1password (optional): brew install tmatilai/tap/direnv-1password"

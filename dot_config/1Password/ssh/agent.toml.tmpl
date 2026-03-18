@@ -3,19 +3,18 @@
 
 # Personal keys
 [[ssh-keys]]
-vault = "GitKeys"
+vault = "{{ .op1pVault }}"
 item  = "ssh-sign-personal-gl"
 
 [[ssh-keys]]
-vault = "GitKeys"
+vault = "{{ .op1pVault }}"
 item  = "ssh-sign-personal-gh"
 
 # Work keys — one entry per company × platform
-{{ range $slug, $co := .companies -}}
-{{ range $co.platforms -}}
+{{ range $slug, $co := .companies }}
+{{ range $co.platforms }}
 [[ssh-keys]]
-vault = "GitKeys"
+vault = "{{ $.op1pVault }}"
 item  = "ssh-sign-{{ default $slug $co.ssh_key_prefix }}-{{ . }}"
-
-{{ end -}}
-{{ end -}}
+{{ end }}
+{{ end }}

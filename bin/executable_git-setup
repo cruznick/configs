@@ -6,7 +6,7 @@ set -euo pipefail
 
 log(){ printf "\n==> %s\n" "$*"; }
 
-: "${OP_VAULT:=zmx6evux6msidifmmgwxfq3wju}"   # change to your vault name if needed
+: "${OP_VAULT:=your-vault-name}"   # set to your 1Password vault name or pass: OP_VAULT=MyVault ./git-setup
 PUB_DIR="${HOME}/.ssh/signing-pubs"
 mkdir -p "$PUB_DIR"
 chmod 700 "${HOME}/.ssh" 2>/dev/null || true

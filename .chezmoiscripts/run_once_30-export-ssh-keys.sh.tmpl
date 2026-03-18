@@ -2,7 +2,7 @@
 # run_once_30-export-ssh-keys.sh — Export SSH public keys from 1Password
 set -euo pipefail
 
-VAULT="GitKeys"
+VAULT="{{ .op1pVault }}"
 PUB_DIR="$HOME/.ssh/signing-pubs"
 mkdir -p "$PUB_DIR"
 chmod 700 "$PUB_DIR"
@@ -28,4 +28,10 @@ export_key "ssh-sign-{{ default $slug $co.ssh_key_prefix }}-{{ . }}" "$PUB_DIR/w
 {{ end -}}
 {{ end -}}
 
-echo "✅ SSH public keys exported to $PUB_DIR"
+echo ""
+echo "✅ run_once_30: SSH public keys exported to $PUB_DIR"
+echo ""
+echo "⚡ Next steps:"
+echo "  - Add $PUB_DIR/personal-gh.pub to github.com (Settings → SSH and GPG keys → Authentication + Signing)"
+echo "  - Add $PUB_DIR/personal-gl.pub to gitlab.com (Preferences → SSH Keys)"
+echo "  - Add work pubkeys to your work accounts (see ~/.ssh/signing-pubs/)"

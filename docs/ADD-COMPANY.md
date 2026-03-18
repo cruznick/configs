@@ -1,74 +1,87 @@
 # Adding a New Work Company
 
-This guide adds a second company (e.g. `birdie`) alongside Kavak.
+## Quick way (recommended)
 
-## Step 1: Update company registry
-
-Edit `.chezmoidata/companies.toml`:
-
-```toml
-[companies.birdie]
-  slug      = "birdie"
-  platforms = ["gh"]   # "gl", "gh", or both
+```bash
+work-config add --slug=acme --platform=gh --email=you@acme.com
 ```
 
-## Step 2: Create SSH keys in 1Password
+This automatically:
+- Adds `[companies.acme]` to your local `companies.toml`
+- Creates `~/repos/work/gh/acme/`
+- Copies `.envrc.example` to `~/repos/work/gh/acme/`
+- Runs `chezmoi apply` (writes gitconfig, SSH config, 1Password agent config)
+- Prints next steps
 
-In the `GitKeys` vault, create SSH key items named:
-- `ssh-sign-birdie-gh` (if using GitHub)
-- `ssh-sign-birdie-gl` (if using GitLab)
+---
+
+## Manual way (power users)
+
+### Step 1: Update your local company registry
+
+Edit `.chezmoidata/companies.toml` (gitignored, lives on your machine only):
+
+```toml
+[companies.acme]
+  slug           = "acme"
+  email          = "you@acme.com"
+  platforms      = ["gh"]   # "gl", "gh", or both
+  ssh_key_prefix = "acme"   # matches 1Password item: ssh-sign-acme-gh
+```
+
+### Step 2: Create SSH keys in 1Password
+
+In your SSH vault, create SSH key items named:
+- `ssh-sign-acme-gh` (if using GitHub)
+- `ssh-sign-acme-gl` (if using GitLab)
 
 See [SSH-KEYS.md](SSH-KEYS.md) for how to create them.
 
-## Step 3: Create git identity files
-
-Create `dot_gitconfig-work-birdie-gh.tmpl`:
-
-```toml
-[user]
-  name       = {{ .name | quote }}
-  email      = "you@birdie.co"
-  signingkey = ~/.ssh/signing-pubs/work-birdie-gh.pub
-
-[url "git@github.com-birdie:"]
-  insteadOf = git@github.com:
-```
-
-> Note: The signing key filename is `work-birdie-gh.pub` — the export script
-> in `run_once_30` auto-generates this from the 1Password item name.
-
-## Step 4: Create company shell config (optional)
-
-Create `companies/birdie/env.zsh`:
-
-```zsh
-# Birdie-specific env vars
-export BIRDIE_ENV=production
-```
-
-And source it from `dot_zshrc.tmpl` — the `COMPANY_RC` section already handles
-this automatically when `workCompany = "birdie"` is set.
-
-## Step 5: Create repo directories
+### Step 3: Create repo directories
 
 ```bash
-mkdir -p ~/repos/work/gh/birdie
+mkdir -p ~/repos/work/gh/acme   # or gl/acme
 ```
 
-## Step 6: Commit and push
+### Step 4: Apply chezmoi
 
 ```bash
-cd ~/repos/personal/gh/configs
-git add .
-git commit -m "Add birdie company config"
-git push
+chezmoi apply
 ```
 
-## Step 7: Apply on all machines
+This automatically:
+- Regenerates `~/.gitconfig` with a new `includeIf` for `~/repos/work/gh/acme/`
+- Regenerates `~/.ssh/config` with a new `Host github.com-acme` alias
+- Writes `~/.gitconfig-work-acme-gh` (with `you@acme.com`)
+- Writes `~/.zshrc.d/work-acme.zsh` stub
+- Updates `~/.config/1Password/ssh/agent.toml` with the new key entry
+
+### Step 5: Add SSH keys to the platform
+
+Add `~/.ssh/signing-pubs/work-gh.pub` to your acme GitHub account.
+
+### Step 6: Set up company secrets (direnv)
 
 ```bash
-chezmoi update
+cd ~/repos/work/gh/acme
+cp .envrc.example .envrc
+# Edit .envrc — fill in your 1Password op:// item paths
+direnv allow
 ```
 
-chezmoi re-runs `run_once_30-export-ssh-keys` (because the script contents
-changed) and exports the new `birdie` keys automatically.
+When you `cd` into `~/repos/work/gh/acme/`, direnv fetches your secrets from 1Password automatically.
+When you `cd` out, they're unloaded.
+
+### Step 7: Authenticate glab (GitLab only)
+
+```bash
+GLAB_CONFIG_DIR=~/.config/glab-acme glab auth login --hostname gitlab.com
+```
+
+### Step 8: Verify identity
+
+```bash
+cd ~/repos/work/gh/acme
+git-check
+# Should show: email = you@acme.com, signingkey = ~/.ssh/signing-pubs/work-gh.pub
+```

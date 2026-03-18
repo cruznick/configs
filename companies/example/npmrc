@@ -1,0 +1,10 @@
+; Work company private npm registry
+; Managed by chezmoi — this file is a reference template.
+; To activate: set WORK_NPM_REGISTRY in your work secrets and run chezmoi apply.
+;
+; Replace WORK_REGISTRY_URL with your registry URL, e.g.:
+;   https://your-company.jfrog.io/artifactory/api/npm/npm/
+
+registry=WORK_REGISTRY_URL
+always-auth=true
+; _auth token comes from WORK_REGISTRY_TOKEN env var (set in secrets, not here)

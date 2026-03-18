@@ -1,0 +1,37 @@
+# .envrc.example — Per-company secrets template using direnv + direnv-1password.
+#
+# Usage:
+#   cp .envrc.example .envrc
+#   # Edit .envrc — fill in your 1Password op:// item paths
+#   direnv allow
+#
+# Secrets are fetched from 1Password on `cd` into this directory and
+# unloaded automatically when you `cd` out. Requires:
+#   - direnv installed (brew install direnv)
+#   - direnv-1password installed (brew install tmatilai/tap/direnv-1password)
+#   - 1Password CLI signed in (op signin)
+#
+# See: https://github.com/tmatilai/direnv-1password
+
+# Load direnv-1password stdlib
+# Adjust path if installed differently (check: which direnv-1password or brew --prefix)
+source_url "https://raw.githubusercontent.com/tmatilai/direnv-1password/main/stdlib.sh" \
+  "sha256-REPLACE_WITH_ACTUAL_HASH_AFTER_FIRST_USE"
+
+# ── Company secrets — replace op:// refs with your 1Password item paths ───────
+# Format: op://<vault>/<item>/<field>
+
+# Private package registry token (Artifactory, GitHub Packages, etc.)
+# op_secret WORK_REGISTRY_TOKEN "op://<vault>/<item>/token"
+
+# Vault / secrets manager token
+# op_secret VAULT_TOKEN "op://<vault>/<item>/token"
+
+# ── Derived env vars (reference secrets fetched above) ────────────────────────
+# Go proxy via private registry:
+# export GOPROXY="https://${WORK_REGISTRY_USER}:${WORK_REGISTRY_TOKEN}@company.jfrog.io/go"
+# export GONOSUMDB="gitlab.com/your-org/*"
+
+# npm / pnpm registry:
+# export NPM_TOKEN="${WORK_REGISTRY_TOKEN}"
+

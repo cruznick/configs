@@ -2,15 +2,20 @@
 
 ## Overview
 
-Four SSH keys live in 1Password (`GitKeys` vault) and are never written to disk
-as private keys. The 1Password agent handles all signing and authentication.
+SSH keys live in 1Password and are never written to disk as private keys.
+The 1Password agent handles all signing and authentication.
+
+The vault name is set during `chezmoi init` (prompt: `1Password vault name for SSH keys`).
 
 | 1Password item | Identity | Purpose |
 |---|---|---|
 | `ssh-sign-personal-gl` | personal GitLab | auth + commit signing |
 | `ssh-sign-personal-gh` | personal GitHub | auth + commit signing |
-| `ssh-sign-kavak-gl` | Kavak GitLab | auth + commit signing |
-| `ssh-sign-kavak-gh` | Kavak GitHub | auth + commit signing |
+| `ssh-sign-work-gl` | work GitLab | auth + commit signing |
+| `ssh-sign-work-gh` | work GitHub | auth + commit signing |
+
+The `work` prefix matches the default `ssh_key_prefix = "work"` in `companies.toml`.
+For additional companies, the prefix is the company slug (e.g. `ssh-sign-company2-gh`).
 
 Only the **public keys** are exported to `~/.ssh/signing-pubs/`.
 
@@ -24,14 +29,14 @@ If the keys don't exist yet in 1Password:
 # Sign in
 op signin
 
-# Create each key (category: SSH Key)
-op item create --category ssh --title "ssh-sign-personal-gl" --vault "GitKeys"
-op item create --category ssh --title "ssh-sign-personal-gh" --vault "GitKeys"
-op item create --category ssh --title "ssh-sign-kavak-gl"    --vault "GitKeys"
-op item create --category ssh --title "ssh-sign-kavak-gh"    --vault "GitKeys"
+# Create each key (category: SSH Key) — replace <vault> with your vault name
+op item create --category ssh --title "ssh-sign-personal-gl" --vault "<vault>"
+op item create --category ssh --title "ssh-sign-personal-gh" --vault "<vault>"
+op item create --category ssh --title "ssh-sign-work-gl"     --vault "<vault>"
+op item create --category ssh --title "ssh-sign-work-gh"     --vault "<vault>"
 ```
 
-Or use ~/bin/git-setup which does this interactively.
+Or use `~/bin/git-setup` which does this interactively.
 
 ---
 
@@ -40,7 +45,7 @@ Or use ~/bin/git-setup which does this interactively.
 ```bash
 # Runs automatically during chezmoi bootstrap (run_once_30)
 # Or manually:
-op item get "ssh-sign-personal-gh" --vault "GitKeys" --fields "public key" \
+op item get "ssh-sign-personal-gh" --vault "<vault>" --fields "public key" \
   > ~/.ssh/signing-pubs/personal-gh.pub
 ```
 
@@ -50,7 +55,7 @@ op item get "ssh-sign-personal-gh" --vault "GitKeys" --fields "public key" \
 
 ```bash
 ssh-add -L
-# Should list all 4 (or more) public keys
+# Should list all public keys loaded by 1Password
 ```
 
 ---

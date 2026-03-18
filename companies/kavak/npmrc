@@ -1,7 +1,0 @@
-; Kavak Artifactory npm registry
-; Managed by chezmoi — this file is NOT deployed automatically.
-; To activate: ln -sf ~/.local/share/chezmoi/companies/kavak/npmrc ~/.npmrc
-; (or chezmoi manages ~/.npmrc separately)
-
-registry=https://kavak.jfrog.io/artifactory/api/npm/npm/
-always-auth=true

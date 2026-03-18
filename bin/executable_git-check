@@ -3,12 +3,17 @@ set -euo pipefail
 
 repo="${1:-.}"
 
-echo "Repo: $repo"
+echo "Repo: $(cd "$repo" && pwd)"
 cd "$repo"
 
-echo "user.name:      $(git config user.name)"
-echo "user.email:     $(git config user.email)"
-echo "user.signingkey:$(git config user.signingkey)"
-echo "gpg.format:     $(git config gpg.format)"
-echo "gpg.ssh.program:$(git config gpg.ssh.program)"
-echo "commit.gpgsign: $(git config commit.gpgsign)"
+echo ""
+echo "── Identity ─────────────────────────────────────────────"
+git config --show-origin user.name
+git config --show-origin user.email
+git config --show-origin user.signingkey 2>/dev/null || echo "(not set)"
+
+echo ""
+echo "── Signing ──────────────────────────────────────────────"
+git config --show-origin gpg.format         2>/dev/null || echo "gpg.format:      (not set)"
+git config --show-origin gpg.ssh.program    2>/dev/null || echo "gpg.ssh.program: (not set)"
+git config --show-origin commit.gpgsign     2>/dev/null || echo "commit.gpgsign:  (not set)"

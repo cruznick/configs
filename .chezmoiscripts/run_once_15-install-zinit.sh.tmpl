@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# run_once_15-install-zinit.sh — Bootstrap zinit plugin manager
+# Runs once; re-runs automatically if this file changes.
+set -euo pipefail
+
+ZINIT_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git"
+
+if [[ ! -d "$ZINIT_HOME" ]]; then
+  echo "Installing zinit..."
+  mkdir -p "$(dirname "$ZINIT_HOME")"
+  git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+  echo "  Cloned to $ZINIT_HOME"
+else
+  echo "  zinit already installed at $ZINIT_HOME"
+fi
+
+echo ""
+echo "✅ run_once_15: zinit plugin manager ready"
