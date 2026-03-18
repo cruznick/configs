@@ -12,7 +12,7 @@ This single command:
 1. Installs Homebrew (if missing)
 2. Installs chezmoi
 3. Clones this repo into `~/.local/share/chezmoi/`
-4. Prompts for name, personal email, GitHub username, 1Password vault — stored locally, never committed
+4. Prompts for name, personal email, GitHub username, Artifactory username, 1Password vault — stored locally, never committed
 5. Deploys all dotfiles to `$HOME`
 6. Runs one-time scripts: zinit install, brew packages, asdf tool versions, SSH key export from 1Password, work gitconfig generation
 
@@ -31,8 +31,9 @@ configs/
 ├── install.sh                    # curl entry point
 ├── .chezmoi.toml.tmpl            # first-run prompts (name, email, vault)
 ├── .chezmoidata/
-│   ├── companies.toml            # gitignored — your local company registry
-│   └── companies.toml.example   # committed example (copy and fill in)
+│   └── companies.toml            # gitignored — your local company registry
+├── docs/
+│   └── companies.toml.example   # committed example (copy to .chezmoidata/ and fill in)
 ├── .chezmoiscripts/              # run-once setup scripts (brew, zinit, asdf, SSH, gitconfigs)
 ├── dot_zshrc.tmpl                # ~/.zshrc
 ├── dot_gitconfig.tmpl            # ~/.gitconfig (dynamic per-company includeIf)

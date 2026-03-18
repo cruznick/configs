@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # run_once_30-export-ssh-keys.sh — Export SSH public keys from 1Password
+{{ if ne .chezmoi.os "darwin" -}}
+echo "run_once_30: skipping (not macOS)"
+exit 0
+{{ end -}}
 set -euo pipefail
 
 VAULT="{{ .op1pVault }}"
@@ -24,7 +28,7 @@ export_key "ssh-sign-personal-gh" "$PUB_DIR/personal-gh.pub"
 # Work — one entry per company × platform
 {{ range $slug, $co := .companies -}}
 {{ range $co.platforms -}}
-export_key "ssh-sign-{{ default $slug $co.ssh_key_prefix }}-{{ . }}" "$PUB_DIR/work-{{ . }}.pub"
+export_key "ssh-sign-{{ default $slug $co.ssh_key_prefix }}-{{ . }}" "$PUB_DIR/{{ default $slug $co.ssh_key_prefix }}-{{ . }}.pub"
 {{ end -}}
 {{ end -}}
 

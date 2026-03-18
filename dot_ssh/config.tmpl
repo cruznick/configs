@@ -29,13 +29,13 @@ Host github.com-{{ $slug }}
   HostName github.com
   User git
   IdentitiesOnly yes
-  IdentityFile ~/.ssh/signing-pubs/work-gh.pub
+  IdentityFile ~/.ssh/signing-pubs/{{ default $slug $co.ssh_key_prefix }}-gh.pub
 {{ end -}}
 {{ if has "gl" $co.platforms }}
 Host gitlab.com-{{ $slug }}
   HostName gitlab.com
   User git
   IdentitiesOnly yes
-  IdentityFile ~/.ssh/signing-pubs/work-gl.pub
+  IdentityFile ~/.ssh/signing-pubs/{{ default $slug $co.ssh_key_prefix }}-gl.pub
 {{ end -}}
 {{ end -}}

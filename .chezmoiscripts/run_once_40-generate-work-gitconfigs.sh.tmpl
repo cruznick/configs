@@ -3,6 +3,10 @@
 # Uses companies.toml (per-company email, platforms) to write per-company gitconfigs
 # and ~/.zshrc.d/work-<slug>.zsh stubs.
 # Runs once; re-runs automatically if this file changes (e.g. new company added).
+{{ if ne .chezmoi.os "darwin" -}}
+echo "run_once_40: skipping (not macOS)"
+exit 0
+{{ end -}}
 set -euo pipefail
 
 NAME="{{ .name }}"
@@ -16,12 +20,13 @@ write_gitconfig() {
   local host_alias="$3" # e.g. github.com-acme
   local host_name="$4"  # e.g. github.com
   local email="$5"
+  local key_prefix="$6" # e.g. work or company slug
 
   cat > "$file" <<EOF
 [user]
   name       = ${NAME}
   email      = ${email}
-  signingkey = ${PUB_DIR}/work-${platform}.pub
+  signingkey = ${PUB_DIR}/${key_prefix}-${platform}.pub
 
 [url "git@${host_alias}:"]
   insteadOf = git@${host_name}:
@@ -62,7 +67,6 @@ ZSHRC
 
 GITCONFIG_COUNT=0
 COMPANY_COUNT=0
-COMPANIES_WRITTEN=()
 
 {{ range $slug, $co := .companies -}}
 echo "── {{ $slug }} ──────────────────────────────────────────────────────────────"
@@ -72,7 +76,8 @@ write_gitconfig \
   "gl" \
   "gitlab.com-{{ $slug }}" \
   "gitlab.com" \
-  "{{ $co.email }}"
+  "{{ $co.email }}" \
+  "{{ default $slug $co.ssh_key_prefix }}"
 GITCONFIG_COUNT=$((GITCONFIG_COUNT + 1))
 {{ end -}}
 {{ if has "gh" $co.platforms -}}
@@ -81,20 +86,20 @@ write_gitconfig \
   "gh" \
   "github.com-{{ $slug }}" \
   "github.com" \
-  "{{ $co.email }}"
+  "{{ $co.email }}" \
+  "{{ default $slug $co.ssh_key_prefix }}"
 GITCONFIG_COUNT=$((GITCONFIG_COUNT + 1))
 {{ end -}}
 write_work_zshrc "{{ $slug }}"
 COMPANY_COUNT=$((COMPANY_COUNT + 1))
-COMPANIES_WRITTEN+=("{{ $slug }}")
 {{ end -}}
 
 echo ""
 echo "✅ run_once_40: Work gitconfigs written for ${COMPANY_COUNT} companies (${GITCONFIG_COUNT} gitconfig files)"
 echo ""
 echo "⚡ Next steps:"
-echo "  - Add ~/.ssh/signing-pubs/work-gh.pub to GitHub (Settings → SSH keys → Authentication + Signing)"
-echo "  - Add ~/.ssh/signing-pubs/work-gl.pub to GitLab (Preferences → SSH Keys)"
+echo "  - Add ~/.ssh/signing-pubs/<key-prefix>-gh.pub to GitHub (Settings → SSH keys → Authentication + Signing)"
+echo "  - Add ~/.ssh/signing-pubs/<key-prefix>-gl.pub to GitLab (Preferences → SSH Keys)"
 echo "  - Authenticate glab: GLAB_CONFIG_DIR=~/.config/glab-<slug> glab auth login --hostname gitlab.com"
 echo "  - Fill in ~/.secrets.zsh with global token values (GITHUB_TOKEN, etc.)"
 echo "  - For each company: copy ~/repos/work/<platform>/<slug>/.envrc.example → .envrc, fill in op:// refs, run: direnv allow"

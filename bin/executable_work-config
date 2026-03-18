@@ -151,20 +151,41 @@ TOML
   # 5. Summary + next steps
   echo "╠══════════════════════════════════════════════════════╣"
   echo "║  ⚡ Next steps (manual):                              ║"
-  box "1. Create SSH key in 1Password:"
-  box "     op item create --category ssh \\"
-  box "       --title \"ssh-sign-${key_prefix}-${platform}\""
-  box "2. Run: chezmoi apply  (to export pubkey)"
-  local platform_label
+  box "1. Create SSH key(s) in 1Password:"
   case "$platform" in
-    gh)   platform_label="GitHub" ;;
-    gl)   platform_label="GitLab" ;;
-    both) platform_label="GitHub and GitLab" ;;
+    gh|gl)
+      box "     op item create --category ssh \\"
+      box "       --title \"ssh-sign-${key_prefix}-${platform}\""
+      ;;
+    both)
+      box "     op item create --category ssh \\"
+      box "       --title \"ssh-sign-${key_prefix}-gh\""
+      box "     op item create --category ssh \\"
+      box "       --title \"ssh-sign-${key_prefix}-gl\""
+      ;;
   esac
-  box "3. Add ~/.ssh/signing-pubs/${key_prefix}-${platform}.pub to ${platform_label}"
-  box "4. Edit ~/repos/work/${platform}/${slug}/.envrc.example"
+  box "2. Run: chezmoi apply  (to export pubkeys)"
+  case "$platform" in
+    gh)
+      box "3. Add ~/.ssh/signing-pubs/${key_prefix}-gh.pub to GitHub"
+      box "4. Edit ~/repos/work/gh/${slug}/.envrc.example"
+      ;;
+    gl)
+      box "3. Add ~/.ssh/signing-pubs/${key_prefix}-gl.pub to GitLab"
+      box "4. Edit ~/repos/work/gl/${slug}/.envrc.example"
+      ;;
+    both)
+      box "3. Add ~/.ssh/signing-pubs/${key_prefix}-gh.pub to GitHub"
+      box "   Add ~/.ssh/signing-pubs/${key_prefix}-gl.pub to GitLab"
+      box "4. Edit ~/repos/work/gh/${slug}/.envrc.example"
+      box "   Edit ~/repos/work/gl/${slug}/.envrc.example"
+      ;;
+  esac
   box "     → copy to .envrc and fill in op:// references"
   box "     → run: direnv allow"
+  box ""
+  box "Note: Update sha256 hash in .envrc.example after first"
+  box "      direnv allow (direnv will print the correct hash)"
   echo "╚══════════════════════════════════════════════════════╝"
   echo ""
 }
@@ -229,7 +250,10 @@ import sys
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib  # fallback for older Python
+    try:
+        import tomli as tomllib
+    except ImportError:
+        sys.exit("error: Python tomllib not available. Install tomli: pip install tomli  (or upgrade to Python 3.11+)")
 
 with open(sys.argv[1], "rb") as f:
     data = tomllib.load(f)
@@ -253,7 +277,10 @@ import sys, os
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib
+    try:
+        import tomli as tomllib
+    except ImportError:
+        sys.exit("error: Python tomllib not available. Install tomli: pip install tomli  (or upgrade to Python 3.11+)")
 
 home = os.path.expanduser("~")
 with open(sys.argv[1], "rb") as f:
@@ -273,7 +300,10 @@ import sys, os
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib
+    try:
+        import tomli as tomllib
+    except ImportError:
+        sys.exit("error: Python tomllib not available. Install tomli: pip install tomli  (or upgrade to Python 3.11+)")
 
 home = os.path.expanduser("~")
 with open(sys.argv[1], "rb") as f:
@@ -293,7 +323,10 @@ import sys, os
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib
+    try:
+        import tomli as tomllib
+    except ImportError:
+        sys.exit("error: Python tomllib not available. Install tomli: pip install tomli  (or upgrade to Python 3.11+)")
 
 home = os.path.expanduser("~")
 with open(sys.argv[1], "rb") as f:
@@ -302,9 +335,9 @@ with open(sys.argv[1], "rb") as f:
 for slug, co in data.get("companies", {}).items():
     prefix = co.get("ssh_key_prefix", slug)
     for p in co.get("platforms", []):
-        path = os.path.join(home, ".ssh", "signing-pubs", f"work-{p}.pub")
+        path = os.path.join(home, ".ssh", "signing-pubs", f"{prefix}-{p}.pub")
         exists = "✅ exists" if os.path.isfile(path) else "❌ missing (run: chezmoi apply after creating 1P key)"
-        print(f"  ~/.ssh/signing-pubs/work-{p}.pub  {exists}")
+        print(f"  ~/.ssh/signing-pubs/{prefix}-{p}.pub  {exists}")
 PYEOF
   echo ""
 }
@@ -341,7 +374,10 @@ import sys, os, subprocess
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib
+    try:
+        import tomli as tomllib
+    except ImportError:
+        sys.exit("error: Python tomllib not available. Install tomli: pip install tomli  (or upgrade to Python 3.11+)")
 
 home = os.path.expanduser("~")
 with open(sys.argv[1], "rb") as f:
