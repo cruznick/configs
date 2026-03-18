@@ -4,6 +4,8 @@
 {{- $artifactoryUser := promptStringOnce . "artifactoryUser" "Work registry username (leave blank if not applicable)" -}}
 {{- $op1pVault := promptStringOnce . "op1pVault" "1Password vault name for SSH keys (e.g. GitKeys, Work)" -}}
 
+sourceDir = "{{ .chezmoi.sourceDir }}"
+
 [data]
   name             = {{ $name | quote }}
   personalEmail    = {{ $personalEmail | quote }}

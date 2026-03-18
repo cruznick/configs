@@ -53,14 +53,34 @@ install_chezmoi() {
 
 # ── dotfiles ──────────────────────────────────────────────────────────────────
 apply_dotfiles() {
-  if chezmoi source-path >/dev/null 2>&1; then
-    # Repo already initialized — just update + apply
+  local local_repo="$HOME/repos/personal/gh/configs"
+  local toml_path
+
+  if [[ -d "$local_repo/.git" ]]; then
+    # Repo already cloned locally — register it as the chezmoi source
+    log "Using existing local repo at $local_repo..."
+    chezmoi init --source "$local_repo"
+    toml_path="$local_repo/.chezmoidata/companies.toml"
+  elif chezmoi source-path >/dev/null 2>&1; then
+    # Already initialised at default location — update
     log "Updating existing chezmoi dotfiles..."
     chezmoi update
+    toml_path="$(chezmoi source-path)/.chezmoidata/companies.toml"
   else
+    # Fresh machine — clone from GitHub
     log "Initializing chezmoi with $REPO..."
-    chezmoi init --apply "$REPO"
+    chezmoi init "$REPO"
+    toml_path="$(chezmoi source-path)/.chezmoidata/companies.toml"
   fi
+
+  # Seed companies.toml if missing (gitignored — must exist for templates)
+  if [[ -n "$toml_path" && ! -f "$toml_path" ]]; then
+    mkdir -p "$(dirname "$toml_path")"
+    printf '[companies]\n' > "$toml_path"
+    ok "Created empty $toml_path"
+  fi
+
+  chezmoi apply
   ok "Dotfiles applied"
 }
 

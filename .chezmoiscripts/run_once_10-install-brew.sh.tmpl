@@ -27,8 +27,11 @@ brew install --formula \
   pulumi \
   asdf uv pnpm \
   glab gh difftastic \
-  direnv \
-  session-manager-plugin
+  direnv
+
+# ── AWS Session Manager Plugin (cask — removed from formula list) ─────────────
+brew install --cask session-manager-plugin 2>/dev/null || \
+  echo "⚠️  session-manager-plugin not available via cask — install manually from AWS"
 
 # ── Containers ────────────────────────────────────────────────────────────────
 brew install --formula \

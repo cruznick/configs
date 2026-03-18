@@ -10,10 +10,9 @@ docs/
 companies/**
 companies/
 
-# chezmoi internal
+# chezmoi internal — these special dirs are handled automatically, not ignored
 .chezmoidata/**
 .chezmoitemplates/**
-.chezmoiscripts/**
 .chezmoiignore
 .chezmoi.toml.tmpl
 

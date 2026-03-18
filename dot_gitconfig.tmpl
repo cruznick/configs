@@ -49,7 +49,7 @@
   path = ~/.gitconfig-personal-gh
 
 # ── Work identities (new company-namespaced paths) ───────────────────────────
-{{ range $slug, $co := .companies -}}
+{{ range $slug, $co := default (dict) .companies -}}
 {{ range $co.platforms -}}
 [includeIf "gitdir:~/repos/work/{{ . }}/{{ $slug }}/"]
   path = ~/.gitconfig-work-{{ $slug }}-{{ . }}

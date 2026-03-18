@@ -1,3 +1,0 @@
-# VSCode workspace SQLite databases — binary, not useful in git
-code/workspaceStorage/**/*.vscdb
-code/workspaceStorage/**/*.vscdb.backup

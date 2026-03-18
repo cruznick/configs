@@ -12,7 +12,7 @@ item  = "ssh-sign-personal-gh"
 
 # Work keys — one entry per company × platform
 # (populated via chezmoi when companies are added to .chezmoidata/companies.toml)
-{{- range $slug, $co := .companies }}
+{{- range $slug, $co := default (dict) .companies }}
 {{- range $co.platforms }}
 
 [[ssh-keys]]

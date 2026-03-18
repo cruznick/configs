@@ -26,7 +26,7 @@ export_key "ssh-sign-personal-gl" "$PUB_DIR/personal-gl.pub"
 export_key "ssh-sign-personal-gh" "$PUB_DIR/personal-gh.pub"
 
 # Work — one entry per company × platform
-{{ range $slug, $co := .companies -}}
+{{ range $slug, $co := default (dict) .companies -}}
 {{ range $co.platforms -}}
 export_key "ssh-sign-{{ default $slug $co.ssh_key_prefix }}-{{ . }}" "$PUB_DIR/{{ default $slug $co.ssh_key_prefix }}-{{ . }}.pub"
 {{ end -}}

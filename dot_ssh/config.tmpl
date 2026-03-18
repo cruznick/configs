@@ -23,7 +23,7 @@ Host gitlab.com-personal
   IdentityFile ~/.ssh/signing-pubs/personal-gl.pub
 
 # ── Work identities — generated per company ──────────────────────────────────
-{{ range $slug, $co := .companies -}}
+{{ range $slug, $co := default (dict) .companies -}}
 {{ if has "gh" $co.platforms }}
 Host github.com-{{ $slug }}
   HostName github.com
