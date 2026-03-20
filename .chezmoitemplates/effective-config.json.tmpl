@@ -1,0 +1,166 @@
+{{- $defaults := include "profiles/defaults.toml" | fromToml -}}
+{{- $overrideFile := joinPath (env "HOME") ".config" "dotfiles" "overrides.toml" -}}
+{{- $workContextDir := joinPath (env "HOME") ".config" "dotfiles" "work-contexts" -}}
+{{- $overrides := dict -}}
+{{- $hasOverrideFile := false -}}
+{{- if stat $overrideFile -}}
+  {{- $hasOverrideFile = true -}}
+  {{- $overrides = include $overrideFile | fromToml -}}
+{{- end -}}
+
+{{- $envOverrides := dict -}}
+{{- $envProfile := env "DOTFILES_PROFILE" -}}
+{{- if $envProfile -}}
+  {{- $_ := set $envOverrides "DOTFILES_PROFILE" $envProfile -}}
+{{- end -}}
+{{- $envProvider := env "DOTFILES_PROVIDER" -}}
+{{- if $envProvider -}}
+  {{- $_ := set $envOverrides "DOTFILES_PROVIDER" $envProvider -}}
+{{- end -}}
+
+{{- $defaultProfile := (index $defaults "default_profile") | default "personal" -}}
+{{- $activeProfile := $defaultProfile -}}
+{{- if (index $overrides "profile") -}}
+  {{- $activeProfile = index $overrides "profile" -}}
+{{- end -}}
+{{- if $envProfile -}}
+  {{- $activeProfile = $envProfile -}}
+{{- end -}}
+{{- if not (has $activeProfile (list "personal" "work")) -}}
+  {{- $activeProfile = $defaultProfile -}}
+{{- end -}}
+
+{{- $profilePath := joinPath "profiles" (printf "%s.toml" $activeProfile) -}}
+{{- $profileData := dict -}}
+{{- if stat $profilePath -}}
+  {{- $profileData = include $profilePath | fromToml -}}
+{{- end -}}
+{{- $cfg := mergeOverwrite (deepCopy $defaults) $profileData -}}
+
+{{- $activeProvider := (((index (index $cfg "providers" | default dict) "default") | default "") | toString) -}}
+{{- if eq $activeProvider "" -}}
+  {{- $activeProvider = (((index (index (index $cfg "profiles" | default dict) $activeProfile | default dict) "default_provider") | default "gh") | toString) -}}
+{{- end -}}
+{{- if (index $overrides "provider") -}}
+  {{- $activeProvider = index $overrides "provider" -}}
+{{- end -}}
+{{- if $envProvider -}}
+  {{- $activeProvider = $envProvider -}}
+{{- end -}}
+{{- if not (has $activeProvider (list "gh" "gl")) -}}
+  {{- $activeProvider = "gh" -}}
+{{- end -}}
+
+{{- $legacyContexts := dict -}}
+{{- if (index . "companies") -}}
+  {{- range $slug, $co := (index . "companies") -}}
+    {{- $_ := set $legacyContexts $slug (dict
+      "context" (dict
+        "slug" ($slug | toString)
+        "enabled" true)
+      "providers" (dict
+        "enabled" ((index $co "platforms") | default (list))
+        "default" (((index $co "platforms") | default (list) | first) | default "gh"))
+      "git" (dict
+        "name" ((index ($cfg.identity | default dict) "git_name") | default "")
+        "email" ((index $co "email") | default "")
+        "signing_key" (printf "~/.ssh/signing-pubs/%s-%s.pub" ((index $co "ssh_key_prefix") | default $slug) ((((index $co "platforms") | default (list) | first) | default "gh")))
+        "signing_item" (printf "ssh-sign-%s-%s" ((index $co "ssh_key_prefix") | default $slug) ((((index $co "platforms") | default (list) | first) | default "gh")))
+        "commit_gpgsign" true)
+      "match" (dict
+        "directories" (list))
+      "ssh" (dict
+        "github_alias" (printf "github.com-%s" $slug)
+        "gitlab_alias" (printf "gitlab.com-%s" $slug)
+        "github_identity_file" (printf "~/.ssh/signing-pubs/%s-gh.pub" ((index $co "ssh_key_prefix") | default $slug))
+        "gitlab_identity_file" (printf "~/.ssh/signing-pubs/%s-gl.pub" ((index $co "ssh_key_prefix") | default $slug)))
+      "direnv" (dict
+        "root_directories" (list)
+        "envrc_example_target" "")) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $requestedWorkContexts := ((index $overrides "work_contexts") | default (list)) -}}
+{{- $workContexts := dict -}}
+{{- $availableWorkContexts := list -}}
+{{- range $path := glob (joinPath $workContextDir "*.toml") -}}
+  {{- $ctx := include $path | fromToml -}}
+  {{- $ctxMeta := (index $ctx "context") | default dict -}}
+  {{- $slug := ((index $ctxMeta "slug") | default "") | toString -}}
+  {{- if $slug -}}
+    {{- $availableWorkContexts = append $availableWorkContexts $slug -}}
+    {{- $_ := set $workContexts $slug $ctx -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if and (eq (len $workContexts) 0) (gt (len $legacyContexts) 0) -}}
+  {{- range $slug, $ctx := $legacyContexts -}}
+    {{- $availableWorkContexts = append $availableWorkContexts $slug -}}
+    {{- $_ := set $workContexts $slug $ctx -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $selectedWorkContexts := list -}}
+{{- if gt (len $requestedWorkContexts) 0 -}}
+  {{- range $requestedWorkContexts -}}
+    {{- if hasKey $workContexts . -}}
+      {{- $ctx := index $workContexts . -}}
+      {{- $enabled := ((index (($ctx.context | default dict)) "enabled") | default true) -}}
+      {{- if $enabled -}}
+        {{- $selectedWorkContexts = append $selectedWorkContexts . -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- else -}}
+  {{- range $slug := ($availableWorkContexts | sortAlpha) -}}
+    {{- $ctx := index $workContexts $slug -}}
+    {{- $enabled := ((index (($ctx.context | default dict)) "enabled") | default true) -}}
+    {{- if $enabled -}}
+      {{- $selectedWorkContexts = append $selectedWorkContexts $slug -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $optionalIntegrations := (index $cfg "optional_integrations") | default dict -}}
+{{- $identity := (index $cfg "identity") | default dict -}}
+{{- if (index . "name") -}}
+  {{- $_ := set $identity "git_name" ((index . "name") | default ((index $identity "git_name") | default "")) -}}
+{{- end -}}
+{{- if (index . "personalEmail") -}}
+  {{- $_ := set $identity "git_email" ((index . "personalEmail") | default ((index $identity "git_email") | default "")) -}}
+{{- end -}}
+{{- if (index . "op1pVault") -}}
+  {{- $_ := set $identity "op_vault" ((index . "op1pVault") | default ((index $identity "op_vault") | default "")) -}}
+{{- end -}}
+{{- if hasKey . "primaryMachine" -}}
+  {{- $_ := set $identity "primary_machine" ((index . "primaryMachine") | default ((index $identity "primary_machine") | default false)) -}}
+{{- end -}}
+{{- if hasKey $overrides "primary_machine" -}}
+  {{- $_ := set $identity "primary_machine" ((index $overrides "primary_machine") | default ((index $identity "primary_machine") | default false)) -}}
+{{- end -}}
+
+{{- $result := dict
+  "schema_version" ((index $defaults "schema_version") | default 1)
+  "active_profile" $activeProfile
+  "active_provider" $activeProvider
+  "selected_work_contexts" $selectedWorkContexts
+  "selected_companies" $selectedWorkContexts
+  "available_work_contexts" ($availableWorkContexts | sortAlpha)
+  "override_file" (ternary $overrideFile "" $hasOverrideFile)
+  "work_context_dir" $workContextDir
+  "env_overrides" $envOverrides
+  "optional_integrations" $optionalIntegrations
+  "identity" $identity
+  "providers" ((index $cfg "providers") | default dict)
+  "git" ((index $cfg "git") | default dict)
+  "cli" ((index $cfg "cli") | default dict)
+  "work_contexts" $workContexts
+  "legacy_compat_active" (gt (len $legacyContexts) 0)
+  "legacy_compat_note" "Legacy .chezmoidata/companies.toml support is transitional and will be removed after migration."
+  "merge_order" (list
+    "profiles/defaults.toml"
+    (printf "profiles/%s.toml" $activeProfile)
+    "~/.config/dotfiles/overrides.toml"
+    "~/.config/dotfiles/work-contexts/*.toml"
+    "environment variables") -}}
+{{- $result | toPrettyJson -}}

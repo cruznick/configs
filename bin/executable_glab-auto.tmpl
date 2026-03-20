@@ -1,32 +1,58 @@
+{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
 #!/usr/bin/env bash
-# glab-auto — Routes glab CLI to the correct config dir based on CWD.
+# glab-auto — Routes glab CLI using local work-context path rules.
 # Managed by chezmoi. Edit source: bin/executable_glab-auto.tmpl
 set -euo pipefail
 
-{{- $home := .chezmoi.homeDir }}
-WORK_DIR="{{ $home }}/repos/work/gl"
-PERS_DIR="{{ $home }}/repos/personal/gl"
+ACTIVE_PROVIDER="{{ $cfg.active_provider }}"
+PERSONAL_GLAB_DIR="{{ joinPath (env "HOME") ".config" ((index ($cfg.cli | default dict) "glab_config_dir") | default "glab-personal") }}"
 
-case "${PWD}/" in
-  # New company-namespaced paths
-  {{ range $slug, $co := .companies -}}
-  {{ if has "gl" $co.platforms -}}
-  "${WORK_DIR}/{{ $slug }}/"*)
-    export GLAB_CONFIG_DIR="{{ $home }}/.config/glab-{{ $slug }}"
-    ;;
-  {{ end -}}
-  {{ end -}}
-  # Personal GitLab
-  "${PERS_DIR}/"*)
-    export GLAB_CONFIG_DIR="{{ $home }}/.config/glab-personal"
-    ;;
-  # Legacy flat path (transition — for repos not yet migrated to work/gl/<slug>/)
-  "${WORK_DIR}/"*)
-    export GLAB_CONFIG_DIR="{{ $home }}/.config/glab-work"
-    ;;
-  *)
-    # Leave GLAB_CONFIG_DIR unset — use default
-    ;;
-esac
+infer_provider_from_remote() {
+  local remote=""
+  remote="$(git remote get-url origin 2>/dev/null || true)"
+  case "$remote" in
+    *gitlab*|*glab*|*gitlab.com-*) echo "gl" ;;
+    *github*|*github.com-*) echo "gh" ;;
+    *) echo "" ;;
+  esac
+}
+
+match_work_context_from_pwd() {
+  local pwd_path="${PWD}/"
+{{- range $slug := ($cfg.selected_work_contexts | default list) }}
+{{- $ctx := index ($cfg.work_contexts | default dict) $slug | default dict }}
+{{- $match := (index $ctx "match") | default dict }}
+{{- range ((index $match "directories") | default list) }}
+  case "$pwd_path" in
+    "{{ . }}/"*) echo "{{ $slug }}"; return 0 ;;
+  esac
+{{- end }}
+{{- end }}
+  echo ""
+}
+
+provider="${DOTFILES_PROVIDER:-$ACTIVE_PROVIDER}"
+if [[ -z "$provider" ]]; then
+  provider="$(infer_provider_from_remote)"
+fi
+
+if [[ "$provider" != "gl" ]]; then
+  exec glab "$@"
+fi
+
+company="$(match_work_context_from_pwd)"
+if [[ -n "$company" ]]; then
+  case "$company" in
+{{- range $slug := ($cfg.selected_work_contexts | default list) }}
+{{- $ctx := index ($cfg.work_contexts | default dict) $slug | default dict }}
+{{- $cli := ((index $ctx "cli") | default dict) }}
+    "{{ $slug }}")
+      export GLAB_CONFIG_DIR="{{ joinPath (env "HOME") ".config" ((index $cli "glab_config_dir") | default (printf "glab-%s" $slug)) }}"
+      ;;
+{{- end }}
+  esac
+else
+  export GLAB_CONFIG_DIR="$PERSONAL_GLAB_DIR"
+fi
 
 exec glab "$@"

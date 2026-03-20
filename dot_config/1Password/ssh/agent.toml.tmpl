@@ -1,22 +1,42 @@
+{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
+{{- $vault := (index ($cfg.identity | default dict) "op_vault") | default "" -}}
 # 1Password SSH agent — managed by chezmoi
 # Edit source: dot_config/1Password/ssh/agent.toml.tmpl
 
+{{- if not $vault }}
+# 1Password vault not configured. Personal and work SSH keys are skipped.
+{{- else }}
 # Personal keys
 [[ssh-keys]]
-vault = "{{ .op1pVault }}"
+vault = "{{ $vault }}"
 item  = "ssh-sign-personal-gl"
 
 [[ssh-keys]]
-vault = "{{ .op1pVault }}"
+vault = "{{ $vault }}"
 item  = "ssh-sign-personal-gh"
 
-# Work keys — one entry per company × platform
-# (populated via chezmoi when companies are added to .chezmoidata/companies.toml)
-{{- range $slug, $co := default (dict) .companies }}
-{{- range $co.platforms }}
+# Local work keys — one entry per local work context
+{{- range $slug := ($cfg.selected_work_contexts | default list) }}
+{{- $ctx := index ($cfg.work_contexts | default dict) $slug | default dict }}
+{{- $git := (index $ctx "git") | default dict }}
+{{- $ssh := (index $ctx "ssh") | default dict }}
+{{- if (index $git "signing_item") }}
 
 [[ssh-keys]]
-vault = "{{ $.op1pVault }}"
-item  = "ssh-sign-{{ default $slug $co.ssh_key_prefix }}-{{ . }}"
+vault = "{{ $vault }}"
+item  = "{{ index $git "signing_item" }}"
+{{- end }}
+{{- if (index $ssh "github_agent_item") }}
+
+[[ssh-keys]]
+vault = "{{ $vault }}"
+item  = "{{ index $ssh "github_agent_item" }}"
+{{- end }}
+{{- if (index $ssh "gitlab_agent_item") }}
+
+[[ssh-keys]]
+vault = "{{ $vault }}"
+item  = "{{ index $ssh "gitlab_agent_item" }}"
+{{- end }}
 {{- end }}
 {{- end }}

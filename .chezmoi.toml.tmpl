@@ -1,22 +1,7 @@
-{{- $name := promptStringOnce . "name" "Full name" -}}
-{{- $personalEmail := promptStringOnce . "personalEmail" "Personal email" -}}
-{{- $githubPersonal := promptStringOnce . "githubPersonal" "Personal GitHub username" -}}
-{{- $artifactoryUser := promptStringOnce . "artifactoryUser" "Work registry username (leave blank if not applicable)" -}}
-{{- $op1pVault := promptStringOnce . "op1pVault" "1Password vault name for SSH keys (e.g. GitKeys, Work)" -}}
-{{- $installWorkApps := promptBoolOnce . "installWorkApps" "Install work apps (openlens, okta-verify, pritunl)?" -}}
-{{- $installPersonalApps := promptBoolOnce . "installPersonalApps" "Install personal apps (spotify, tidal, meetingbar, shottr, istat-menus)?" -}}
-{{- $installAiTools := promptBoolOnce . "installAiTools" "Install AI tools (claude, claude-code, codex, chatgpt)?" -}}
-{{- $primaryMachine := promptBoolOnce . "primaryMachine" "Is this the primary machine? (manages iStat Menus config source of truth)" -}}
-
-sourceDir = "{{ .chezmoi.sourceDir }}"
-
+# Managed by chezmoi.
+#
+# Profile/provider selection and machine-specific overrides now live in:
+#   ~/.config/dotfiles/overrides.toml
+#
+# Legacy top-level [data] values are no longer required for baseline bootstrap.
 [data]
-  name               = {{ $name | quote }}
-  personalEmail      = {{ $personalEmail | quote }}
-  githubPersonal     = {{ $githubPersonal | quote }}
-  artifactoryUser    = {{ $artifactoryUser | quote }}
-  op1pVault          = {{ $op1pVault | quote }}
-  installWorkApps    = {{ $installWorkApps }}
-  installPersonalApps = {{ $installPersonalApps }}
-  installAiTools     = {{ $installAiTools }}
-  primaryMachine     = {{ $primaryMachine }}

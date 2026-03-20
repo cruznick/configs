@@ -1,3 +1,9 @@
+{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
+{{- $identity := $cfg.identity | default dict -}}
+{{- $git := $cfg.git | default dict -}}
+{{- $provider := $cfg.active_provider | default "gh" -}}
+{{- $personalSigningKey := printf "~/.ssh/signing-pubs/personal-%s.pub" $provider -}}
+{{- $personalRewriteHost := ternary "gitlab.com-personal" "github.com-personal" (eq $provider "gl") -}}
 [pull]
   rebase = true
 
@@ -18,13 +24,17 @@
   format = ssh
 
 [gpg "ssh"]
+{{- if eq .chezmoi.os "darwin" }}
   program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+{{- else }}
+  program = op-ssh-sign
+{{- end }}
 
 [commit]
-  gpgsign = true
+  gpgsign = {{ (index $git "commit_gpgsign") | default true }}
 
 [tag]
-  gpgSign = true
+  gpgSign = {{ (index $git "tag_gpgsign") | default true }}
 
 [alias]
   permission-reset = !git diff -p -R --no-ext-diff --no-color | grep -E "^(diff|(old|new) mode)" --color=never | git apply
@@ -41,19 +51,29 @@
   gh-mr  = !gh pr create
   df   = diff
 
-# ── Personal identities ───────────────────────────────────────────────────────
-[includeIf "gitdir:~/repos/personal/gl/"]
-  path = ~/.gitconfig-personal-gl
+[user]
+  name  = {{ ((index $identity "git_name") | default "Unknown User") | quote }}
+  email = {{ ((index $identity "git_email") | default "") | quote }}
+{{- if ((index $git "signing_enabled") | default true) }}
+  signingkey = {{ $personalSigningKey | quote }}
+{{- end }}
 
-[includeIf "gitdir:~/repos/personal/gh/"]
-  path = ~/.gitconfig-personal-gh
+{{- if eq $provider "gl" }}
+[url "git@{{ $personalRewriteHost }}:"]
+  insteadOf = git@gitlab.com:
+{{- else }}
+[url "git@{{ $personalRewriteHost }}:"]
+  insteadOf = git@github.com:
+{{- end }}
 
-# ── Work identities (new company-namespaced paths) ───────────────────────────
-{{ range $slug, $co := default (dict) .companies -}}
-{{ range $co.platforms -}}
-[includeIf "gitdir:~/repos/work/{{ . }}/{{ $slug }}/"]
-  path = ~/.gitconfig-work-{{ $slug }}-{{ . }}
+# Local work contexts are path-scoped and generated from:
+#   ~/.config/dotfiles/work-contexts/*.toml
+{{- range $slug := ($cfg.selected_work_contexts | default list) }}
+{{- $ctx := index ($cfg.work_contexts | default dict) $slug | default dict }}
+{{- $match := (index $ctx "match") | default dict }}
+{{- range ((index $match "directories") | default list) }}
+[includeIf "gitdir:{{ . }}/"]
+  path = {{ printf "~/.config/dotfiles/generated/git/work-%s.gitconfig" $slug | quote }}
 
-{{ end -}}
-{{ end -}}
-
+{{- end }}
+{{- end }}

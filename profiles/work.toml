@@ -1,0 +1,9 @@
+[profile]
+name = "work"
+
+[providers]
+enabled = ["gh", "gl"]
+default = "gh"
+
+[cli]
+glab_config_dir = "glab-work"

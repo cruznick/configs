@@ -1,27 +1,7 @@
-# Company work identities.
-# Copy this file to .chezmoidata/companies.toml and fill in your details:
-#   cp docs/companies.toml.example .chezmoidata/companies.toml
+# Legacy compatibility example only.
 #
-# companies.toml is gitignored — it stays on your machine only.
+# New local work-context definitions belong in:
+#   ~/.config/dotfiles/work-contexts/<slug>.toml
 #
-# Each entry drives: git includeIf, SSH host aliases, glab routing, gitconfig generation.
-#
-# Recommended: use `work-config add` to add companies interactively:
-#   work-config add --slug=acme --platform=gh --email=you@acme.com
-#
-# Or add manually below, then run: chezmoi apply
-# See docs/ADD-COMPANY.md for the full guide.
-
-[companies.acme]
-  slug           = "acme"
-  email          = "you@acme.com"        # your work email at this company
-  platforms      = ["gl", "gh"]          # "gl" for GitLab, "gh" for GitHub
-  # ssh_key_prefix: name used in 1Password item: "ssh-sign-<prefix>-<platform>"
-  # Defaults to slug if omitted (e.g. slug "acme" → "ssh-sign-acme-gl")
-  ssh_key_prefix = "work"
-
-# [companies.company2]
-#   slug           = "company2"
-#   email          = "you@company2.com"
-#   platforms      = ["gh"]
-#   ssh_key_prefix = "company2"
+# Legacy `.chezmoidata/companies.toml` support is transitional and will be
+# removed after migration.

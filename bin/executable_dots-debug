@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+FORMAT="text"
+if [[ "${1:-}" == "--json" ]]; then
+  FORMAT="json"
+fi
+
+if [[ -f "$PWD/.chezmoitemplates/effective-config.json.tmpl" ]]; then
+  SOURCE_DIR="$PWD"
+else
+  SOURCE_DIR="$(chezmoi source-path)"
+fi
+JSON="$(chezmoi execute-template --source "$SOURCE_DIR" '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}')"
+
+if [[ "$FORMAT" == "json" ]]; then
+  printf '%s\n' "$JSON"
+  exit 0
+fi
+
+if command -v jq >/dev/null 2>&1; then
+  jq -r '
+    "active_profile: \(.active_profile)",
+    "active_provider: \(.active_provider)",
+    "selected_work_contexts: \(.selected_work_contexts | join(","))",
+    "override_file: \(.override_file)",
+    "env_overrides: \(.env_overrides | tojson)",
+    "optional_integrations: \(.optional_integrations | tojson)"
+  ' <<<"$JSON"
+else
+  printf '%s\n' "$JSON"
+fi

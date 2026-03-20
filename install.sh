@@ -1,113 +1,181 @@
 #!/usr/bin/env bash
-# install.sh — Bootstrap a new Mac with Benjamin's dotfiles
-#
-# Usage (curl-installable):
-#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/cruznick/configs/main/install.sh)"
-#
-# Or clone-and-run:
-#   bash ~/repos/personal/gh/configs/install.sh
-#
+# install.sh — Deterministic chezmoi bootstrap for macOS/Linux
 set -euo pipefail
 
 REPO="cruznick/configs"
+REPO_URL="https://github.com/${REPO}.git"
 CHEZMOI_BIN_DIR="$HOME/.local/bin"
+OVERRIDES_DIR="$HOME/.config/dotfiles"
+OVERRIDES_FILE="$OVERRIDES_DIR/overrides.toml"
 
-log()  { printf "\n\033[1;34m==> %s\033[0m\n" "$*"; }
-ok()   { printf "\033[1;32m✓ %s\033[0m\n" "$*"; }
-warn() { printf "\033[1;33m[WARN] %s\033[0m\n" "$*" >&2; }
-die()  { printf "\033[1;31m[ERROR] %s\033[0m\n" "$*" >&2; exit 1; }
+log()  { printf "\n[INFO] %s\n" "$*"; }
+ok()   { printf "[OK] %s\n" "$*"; }
+warn() { printf "[WARN] %s\n" "$*" >&2; }
+die()  { printf "[ERROR] %s\n" "$*" >&2; exit 1; }
 
-# ── Homebrew ──────────────────────────────────────────────────────────────────
-install_homebrew() {
+script_dir() {
+  cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
+}
+
+is_supported_os() {
+  case "$(uname)" in
+    Darwin|Linux) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_valid_git_repo() {
+  local path="$1"
+  [[ -d "$path/.git" ]] || return 1
+  git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
+repo_matches_expected() {
+  local path="$1"
+  local remote=""
+  remote="$(git -C "$path" config --get remote.origin.url 2>/dev/null || true)"
+  [[ "$remote" == *"$REPO"* ]]
+}
+
+ensure_curl() {
+  command -v curl >/dev/null 2>&1 || die "curl is required for bootstrap"
+}
+
+install_homebrew_if_needed() {
+  if [[ "$(uname)" != "Darwin" ]]; then
+    return 0
+  fi
   if command -v brew >/dev/null 2>&1; then
     ok "Homebrew already installed"
     return 0
   fi
-  log "Installing Homebrew..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  # Add brew to PATH for this session (Apple Silicon)
-  if [[ -f /opt/homebrew/bin/brew ]]; then
+  log "Installing Homebrew"
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || die "Homebrew installation failed"
+  if [[ -x /opt/homebrew/bin/brew ]]; then
     eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [[ -x /usr/local/bin/brew ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
   fi
   ok "Homebrew installed"
 }
 
-# ── chezmoi ───────────────────────────────────────────────────────────────────
 install_chezmoi() {
   if command -v chezmoi >/dev/null 2>&1; then
-    ok "chezmoi already installed ($(chezmoi --version 2>&1 | head -1))"
+    ok "chezmoi already installed"
     return 0
   fi
-  # Try brew first (preferred on macOS)
   if command -v brew >/dev/null 2>&1; then
-    log "Installing chezmoi via brew..."
-    brew install chezmoi
+    log "Installing chezmoi via brew"
+    brew install chezmoi || die "Failed to install chezmoi via brew"
   else
-    log "Installing chezmoi via official script..."
+    log "Installing chezmoi via official script"
     mkdir -p "$CHEZMOI_BIN_DIR"
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$CHEZMOI_BIN_DIR"
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$CHEZMOI_BIN_DIR" || die "Failed to install chezmoi"
     export PATH="$CHEZMOI_BIN_DIR:$PATH"
   fi
   ok "chezmoi installed"
 }
 
-# ── dotfiles ──────────────────────────────────────────────────────────────────
-apply_dotfiles() {
-  local local_repo="$HOME/repos/personal/gh/configs"
-  local toml_path
+find_local_source_candidate() {
+  local candidate
+  candidate="$(script_dir)"
+  if is_valid_git_repo "$candidate" && repo_matches_expected "$candidate"; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  candidate="$HOME/repos/personal/gh/configs"
+  if is_valid_git_repo "$candidate" && repo_matches_expected "$candidate"; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  return 1
+}
 
-  if [[ -d "$local_repo/.git" ]]; then
-    # Repo already cloned locally — register it as the chezmoi source
-    log "Using existing local repo at $local_repo..."
-    chezmoi init --source "$local_repo"
-    toml_path="$local_repo/.chezmoidata/companies.toml"
-  elif chezmoi source-path >/dev/null 2>&1; then
-    # Already initialised at default location — update
-    log "Updating existing chezmoi dotfiles..."
-    chezmoi update
-    toml_path="$(chezmoi source-path)/.chezmoidata/companies.toml"
+backup_broken_source() {
+  local path="$1"
+  local backup="${path}.broken.$(date +%Y%m%d%H%M%S)"
+  if [[ -e "$path" ]]; then
+    mv "$path" "$backup"
+    warn "Backed up broken chezmoi source to $backup"
+  fi
+}
+
+init_or_update_source() {
+  local candidate="${1:-}"
+  local current=""
+
+  current="$(chezmoi source-path 2>/dev/null || true)"
+  if [[ -n "$current" ]]; then
+    log "Found existing chezmoi source: $current"
+    if is_valid_git_repo "$current" && repo_matches_expected "$current"; then
+      log "Updating existing chezmoi source"
+      chezmoi update || die "chezmoi update failed"
+      ok "chezmoi source updated"
+      return 0
+    fi
+    warn "Existing chezmoi source is invalid or unexpected"
+    backup_broken_source "$current"
+  fi
+
+  if [[ -n "$candidate" ]]; then
+    log "Initializing chezmoi from local source: $candidate"
+    chezmoi init --source "$candidate" || die "chezmoi init --source failed"
   else
-    # Fresh machine — clone from GitHub
-    log "Initializing chezmoi with $REPO..."
-    chezmoi init "$REPO"
-    toml_path="$(chezmoi source-path)/.chezmoidata/companies.toml"
+    log "Initializing chezmoi from ${REPO}"
+    chezmoi init "$REPO" || die "chezmoi init failed"
   fi
+  ok "chezmoi source initialized"
+}
 
-  # Seed companies.toml if missing (gitignored — must exist for templates)
-  if [[ -n "$toml_path" && ! -f "$toml_path" ]]; then
-    mkdir -p "$(dirname "$toml_path")"
-    printf '[companies]\n' > "$toml_path"
-    ok "Created empty $toml_path"
+seed_local_overrides() {
+  mkdir -p "$OVERRIDES_DIR"
+  if [[ -f "$OVERRIDES_FILE" ]]; then
+    ok "Local overrides already present"
+    return 0
   fi
+  log "Creating local overrides file"
+  cat >"$OVERRIDES_FILE" <<'EOF'
+# Machine-local, non-secret overrides.
+profile = "personal"
+provider = "gh"
+work_contexts = []
+primary_machine = false
+EOF
+  ok "Created $OVERRIDES_FILE"
+}
 
-  chezmoi apply
+apply_dotfiles() {
+  log "Applying dotfiles"
+  chezmoi apply || die "chezmoi apply failed"
   ok "Dotfiles applied"
 }
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 main() {
-  log "Benjamin's dotfiles bootstrap"
-  echo "Repo: https://github.com/$REPO"
-  echo ""
+  is_supported_os || die "Unsupported OS: $(uname)"
+  ensure_curl
+  log "Bootstrapping dotfiles for $(uname)"
 
-  [[ "$(uname)" == "Darwin" ]] || die "This script is macOS-only. Adapt for Linux manually."
-
-  install_homebrew
+  install_homebrew_if_needed
   install_chezmoi
+
+  local candidate=""
+  candidate="$(find_local_source_candidate || true)"
+  init_or_update_source "$candidate"
+  seed_local_overrides
   apply_dotfiles
 
-  log "Done ✅"
+  log "Bootstrap complete"
   cat <<'EOF'
 
-Next steps (one-time manual actions):
-  1. Reload shell:          source ~/.zshrc
-  2. Verify SSH agent:      ssh-add -L
-  3. Personal tokens:       cp personal/.envrc.example ~/repos/personal/gh/.envrc && direnv allow ~/repos/personal/gh/.envrc
-  4. Add a work company:    work-config add --slug=acme --platform=gh --email=you@acme.com
-  5. glab personal auth:    GLAB_CONFIG_DIR=~/.config/glab-personal glab auth login --hostname gitlab.com
-  6. AWS SSO login:         aws sso login --profile development
-  7. EKS kubeconfig:        install-eks-kubeconfig both
+Debug commands:
+  dots-debug --json
+  dots-profile
 
+Local machine selection:
+  ~/.config/dotfiles/overrides.toml
+  ~/.config/dotfiles/work-contexts/
+
+Legacy .chezmoidata/companies.toml support is transitional and will be removed after migration.
 EOF
 }
 

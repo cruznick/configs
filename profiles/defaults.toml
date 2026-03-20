@@ -1,0 +1,37 @@
+schema_version = 1
+default_profile = "personal"
+
+[profiles.personal]
+default_provider = "gh"
+
+[profiles.work]
+default_provider = "gh"
+
+[identity]
+git_name = ""
+git_email = ""
+op_vault = ""
+primary_machine = false
+
+[providers]
+enabled = ["gh", "gl"]
+
+[companies]
+allowed = []
+
+[git]
+signing_enabled = true
+commit_gpgsign = true
+tag_gpgsign = true
+
+[cli]
+glab_config_dir = ""
+
+[optional_integrations]
+homebrew_core = true
+homebrew_extras = false
+zinit = true
+asdf = true
+ssh_key_export = true
+onepassword = true
+

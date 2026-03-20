@@ -1,0 +1,13 @@
+[profile]
+name = "personal"
+
+[identity]
+git_name = "Benjamin J. Martinez"
+git_email = "benjaminjmtz@gmail.com"
+
+[providers]
+enabled = ["gh", "gl"]
+default = "gh"
+
+[cli]
+glab_config_dir = "glab-personal"

@@ -1,0 +1,34 @@
+[context]
+slug = "example-client"
+enabled = true
+# name is optional
+
+[providers]
+enabled = ["gh", "gl"]
+default = "gh"
+
+[git]
+name = "Your Name"
+email = "you@example-client.com"
+signing_key = "~/.ssh/signing-pubs/example-client-gh-signing.pub"
+signing_item = "ssh-sign-example-client-gh"
+commit_gpgsign = true
+
+[match]
+directories = [
+  "~/repos/work/gh/example-client",
+]
+
+[ssh]
+github_alias = "github.com-example-client"
+gitlab_alias = "gitlab.com-example-client"
+github_identity_file = "~/.ssh/signing-pubs/example-client-gh.pub"
+gitlab_identity_file = "~/.ssh/signing-pubs/example-client-gl.pub"
+github_agent_item = ""
+gitlab_agent_item = ""
+
+[direnv]
+root_directories = [
+  "~/repos/work/gh/example-client",
+]
+envrc_example_target = "~/repos/work/gh/example-client/.envrc.example"

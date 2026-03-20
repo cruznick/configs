@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORK_CONTEXT_DIR="${HOME}/.config/dotfiles/work-contexts"
+SOURCE_DIR="$(chezmoi source-path 2>/dev/null || pwd)"
+EXAMPLE_ENVRC_SRC="${SOURCE_DIR}/companies/example/.envrc.example"
+
+usage() {
+  cat <<'EOF'
+Usage: dots-work <command>
+
+Commands:
+  create   interactively create a local work context
+  list     list local work contexts
+  remove   --slug=<slug>
+EOF
+}
+
+prompt() {
+  local label="$1" default="${2:-}" value=""
+  if [[ -n "$default" ]]; then
+    read -r "?${label} [${default}]: " value
+    printf '%s\n' "${value:-$default}"
+  else
+    read -r "?${label}: " value
+    printf '%s\n' "$value"
+  fi
+}
+
+csv_to_toml_array() {
+  local raw="$1"
+  printf '%s' "$raw" | awk -F, '{for (i=1;i<=NF;i++) {gsub(/^[[:space:]]+|[[:space:]]+$/, "", $i); printf "%s\"%s\"", (i>1?", ":""), $i}}'
+}
+
+create_context() {
+  mkdir -p "$WORK_CONTEXT_DIR"
+
+  local slug name git_name git_email providers default_provider dirs primary_dir
+  local signing_key signing_item gh_alias gl_alias gh_identity gl_identity scaffold envrc_target
+
+  slug="$(prompt "Slug")"
+  [[ -n "$slug" ]] || { echo "slug is required" >&2; exit 1; }
+  name="$(prompt "Display name (optional)")"
+  git_name="$(prompt "Git user.name")"
+  git_email="$(prompt "Git user.email")"
+  providers="$(prompt "Enabled providers (comma-separated gh,gl)" "gh")"
+  default_provider="$(prompt "Default provider" "gh")"
+  dirs="$(prompt "Match directories (comma-separated)" "$HOME/repos/work/${default_provider}/${slug}")"
+  primary_dir="${dirs%%,*}"
+  signing_key="$(prompt "Git signing key path (optional)" "~/.ssh/signing-pubs/${slug}-${default_provider}-signing.pub")"
+  signing_item="$(prompt "1Password git signing item (optional)" "ssh-sign-${slug}-${default_provider}")"
+  gh_alias="$(prompt "GitHub SSH alias (optional)" "github.com-${slug}")"
+  gl_alias="$(prompt "GitLab SSH alias (optional)" "gitlab.com-${slug}")"
+  gh_identity="$(prompt "GitHub SSH identity file (optional)" "~/.ssh/signing-pubs/${slug}-gh.pub")"
+  gl_identity="$(prompt "GitLab SSH identity file (optional)" "~/.ssh/signing-pubs/${slug}-gl.pub")"
+  scaffold="$(prompt "Create match directories now? (y/n)" "y")"
+  envrc_target="$(prompt ".envrc.example target (optional)" "${primary_dir}/.envrc.example")"
+
+  cat > "${WORK_CONTEXT_DIR}/${slug}.toml" <<EOF
+[context]
+slug = "${slug}"
+enabled = true
+${name:+name = "${name}"}
+
+[providers]
+enabled = [$(csv_to_toml_array "$providers")]
+default = "${default_provider}"
+
+[git]
+name = "${git_name}"
+email = "${git_email}"
+signing_key = "${signing_key}"
+signing_item = "${signing_item}"
+commit_gpgsign = true
+
+[match]
+directories = [$(csv_to_toml_array "$dirs")]
+
+[ssh]
+github_alias = "${gh_alias}"
+gitlab_alias = "${gl_alias}"
+github_identity_file = "${gh_identity}"
+gitlab_identity_file = "${gl_identity}"
+github_agent_item = ""
+gitlab_agent_item = ""
+
+[direnv]
+root_directories = [$(csv_to_toml_array "$dirs")]
+envrc_example_target = "${envrc_target}"
+EOF
+
+  if [[ "$scaffold" =~ ^[Yy]$ ]]; then
+    local dir
+    IFS=',' read -r -a dir_array <<< "$dirs"
+    for dir in "${dir_array[@]}"; do
+      mkdir -p "${dir/#\~/$HOME}"
+    done
+  fi
+
+  if [[ -f "$EXAMPLE_ENVRC_SRC" && -n "$envrc_target" ]]; then
+    mkdir -p "$(dirname "${envrc_target/#\~/$HOME}")"
+    cp "$EXAMPLE_ENVRC_SRC" "${envrc_target/#\~/$HOME}"
+  fi
+
+  echo "Created local work context: ${WORK_CONTEXT_DIR}/${slug}.toml"
+  chezmoi apply || true
+}
+
+list_contexts() {
+  mkdir -p "$WORK_CONTEXT_DIR"
+  find "$WORK_CONTEXT_DIR" -maxdepth 1 -type f -name '*.toml' -print | sort
+}
+
+remove_context() {
+  local slug=""
+  for arg in "$@"; do
+    case "$arg" in
+      --slug=*) slug="${arg#*=}" ;;
+      *) echo "unknown argument: $arg" >&2; exit 1 ;;
+    esac
+  done
+  [[ -n "$slug" ]] || { echo "--slug is required" >&2; exit 1; }
+  rm -f "${WORK_CONTEXT_DIR}/${slug}.toml"
+  echo "Removed local work context: ${WORK_CONTEXT_DIR}/${slug}.toml"
+  chezmoi apply || true
+}
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  create) create_context "$@" ;;
+  list) list_contexts ;;
+  remove) remove_context "$@" ;;
+  ""|-h|--help) usage ;;
+  *) usage; exit 1 ;;
+esac

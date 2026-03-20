@@ -1,3 +1,6 @@
+{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
+{{- $identity := $cfg.identity | default dict -}}
+{{- $opSock := joinPath .chezmoi.homeDir "Library" "Group Containers" "2BUA8C4S2C.com.1password" "t" "agent.sock" -}}
 # Managed by chezmoi — edit source: dot_ssh/config.tmpl
 
 # Colima (container runtime) — keep first
@@ -6,8 +9,10 @@ Include {{ .chezmoi.homeDir }}/.colima/ssh_config
 {{ end -}}
 
 # ── 1Password SSH agent (all hosts) ──────────────────────────────────────────
+{{- if and ((index ($cfg.optional_integrations | default dict) "onepassword") | default true) (stat $opSock) }}
 Host *
   IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+{{ end }}
 
 # ── Personal identities ───────────────────────────────────────────────────────
 Host github.com-personal
@@ -22,20 +27,27 @@ Host gitlab.com-personal
   IdentitiesOnly yes
   IdentityFile ~/.ssh/signing-pubs/personal-gl.pub
 
-# ── Work identities — generated per company ──────────────────────────────────
-{{ range $slug, $co := default (dict) .companies -}}
-{{ if has "gh" $co.platforms }}
-Host github.com-{{ $slug }}
+# ── Local work identities for Git access ─────────────────────────────────────
+{{ range $slug := ($cfg.selected_work_contexts | default list) -}}
+{{ $ctx := index ($cfg.work_contexts | default dict) $slug | default dict -}}
+{{ $providers := index ((index $ctx "providers") | default dict) "enabled" | default list -}}
+{{ $ssh := (index $ctx "ssh") | default dict -}}
+{{ if has "gh" $providers }}
+Host {{ (index $ssh "github_alias") | default (printf "github.com-%s" $slug) }}
   HostName github.com
   User git
   IdentitiesOnly yes
-  IdentityFile ~/.ssh/signing-pubs/{{ default $slug $co.ssh_key_prefix }}-gh.pub
+{{- if (index $ssh "github_identity_file") }}
+  IdentityFile {{ index $ssh "github_identity_file" }}
+{{- end }}
 {{ end -}}
-{{ if has "gl" $co.platforms }}
-Host gitlab.com-{{ $slug }}
+{{ if has "gl" $providers }}
+Host {{ (index $ssh "gitlab_alias") | default (printf "gitlab.com-%s" $slug) }}
   HostName gitlab.com
   User git
   IdentitiesOnly yes
-  IdentityFile ~/.ssh/signing-pubs/{{ default $slug $co.ssh_key_prefix }}-gl.pub
+{{- if (index $ssh "gitlab_identity_file") }}
+  IdentityFile {{ index $ssh "gitlab_identity_file" }}
+{{- end }}
 {{ end -}}
 {{ end -}}

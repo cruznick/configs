@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -f "$PWD/.chezmoitemplates/effective-config.json.tmpl" ]]; then
+  SOURCE_DIR="$PWD"
+else
+  SOURCE_DIR="$(chezmoi source-path)"
+fi
+JSON="$(chezmoi execute-template --source "$SOURCE_DIR" '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}')"
+
+if command -v jq >/dev/null 2>&1; then
+  jq -r '
+    "profile=\(.active_profile)",
+    "provider=\(.active_provider)",
+    "work_contexts=\(.selected_work_contexts | join(","))"
+  ' <<<"$JSON"
+else
+  printf '%s\n' "$JSON"
+fi
