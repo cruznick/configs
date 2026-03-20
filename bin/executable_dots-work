@@ -2,7 +2,7 @@
 set -euo pipefail
 
 WORK_CONTEXT_DIR="${HOME}/.config/dotfiles/work-contexts"
-SOURCE_DIR="$(chezmoi source-path 2>/dev/null || pwd)"
+SOURCE_DIR="{{ .chezmoi.sourceDir }}"
 EXAMPLE_ENVRC_SRC="${SOURCE_DIR}/companies/example/.envrc.example"
 
 usage() {
@@ -19,12 +19,18 @@ EOF
 prompt() {
   local label="$1" default="${2:-}" value=""
   if [[ -n "$default" ]]; then
-    read -r "?${label} [${default}]: " value
+    printf '%s' "${label} [${default}]: " >&2
+    read -r value
     printf '%s\n' "${value:-$default}"
   else
-    read -r "?${label}: " value
+    printf '%s' "${label}: " >&2
+    read -r value
     printf '%s\n' "$value"
   fi
+}
+
+chezmoi_apply() {
+  chezmoi apply --source "$SOURCE_DIR"
 }
 
 csv_to_toml_array() {
@@ -32,11 +38,56 @@ csv_to_toml_array() {
   printf '%s' "$raw" | awk -F, '{for (i=1;i<=NF;i++) {gsub(/^[[:space:]]+|[[:space:]]+$/, "", $i); printf "%s\"%s\"", (i>1?", ":""), $i}}'
 }
 
+expand_home() {
+  local path="$1"
+  printf '%s\n' "${path/#\~/$HOME}"
+}
+
+canonicalize_path_if_exists() {
+  local path="$1"
+  if [[ -d "$path" ]]; then
+    (cd "$path" && pwd -P)
+  else
+    printf '%s\n' "$path"
+  fi
+}
+
+normalize_target_path() {
+  local path="$1"
+  local expanded dir base canonical_dir
+  expanded="$(expand_home "$path")"
+  dir="$(dirname "$expanded")"
+  base="$(basename "$expanded")"
+  canonical_dir="$(canonicalize_path_if_exists "$dir")"
+  printf '%s\n' "$canonical_dir/$base"
+}
+
+normalize_csv_paths() {
+  local raw="$1"
+  local normalized=()
+  local part expanded canonical
+  IFS=',' read -r -a parts <<< "$raw"
+  for part in "${parts[@]}"; do
+    part="${part#"${part%%[![:space:]]*}"}"
+    part="${part%"${part##*[![:space:]]}"}"
+    expanded="$(expand_home "$part")"
+    canonical="$(canonicalize_path_if_exists "$expanded")"
+    normalized+=("$canonical")
+  done
+  local joined=""
+  for part in "${normalized[@]}"; do
+    [[ -n "$joined" ]] && joined+=","
+    joined+="$part"
+  done
+  printf '%s\n' "$joined"
+}
+
 create_context() {
   mkdir -p "$WORK_CONTEXT_DIR"
 
   local slug name git_name git_email providers default_provider dirs primary_dir
   local signing_key signing_item gh_alias gl_alias gh_identity gl_identity scaffold envrc_target
+  local name_line="" normalized_dirs normalized_envrc_target
 
   slug="$(prompt "Slug")"
   [[ -n "$slug" ]] || { echo "slug is required" >&2; exit 1; }
@@ -55,12 +106,24 @@ create_context() {
   gl_identity="$(prompt "GitLab SSH identity file (optional)" "~/.ssh/signing-pubs/${slug}-gl.pub")"
   scaffold="$(prompt "Create match directories now? (y/n)" "y")"
   envrc_target="$(prompt ".envrc.example target (optional)" "${primary_dir}/.envrc.example")"
+  if [[ "$scaffold" =~ ^[Yy]$ ]]; then
+    local dir
+    IFS=',' read -r -a dir_array <<< "$dirs"
+    for dir in "${dir_array[@]}"; do
+      mkdir -p "$(expand_home "${dir#"${dir%%[![:space:]]*}"}")"
+    done
+  fi
+  normalized_dirs="$(normalize_csv_paths "$dirs")"
+  normalized_envrc_target="$(normalize_target_path "$envrc_target")"
+  if [[ -n "$name" ]]; then
+    name_line="name = \"${name}\""
+  fi
 
   cat > "${WORK_CONTEXT_DIR}/${slug}.toml" <<EOF
 [context]
 slug = "${slug}"
 enabled = true
-${name:+name = "${name}"}
+${name_line}
 
 [providers]
 enabled = [$(csv_to_toml_array "$providers")]
@@ -74,7 +137,7 @@ signing_item = "${signing_item}"
 commit_gpgsign = true
 
 [match]
-directories = [$(csv_to_toml_array "$dirs")]
+directories = [$(csv_to_toml_array "$normalized_dirs")]
 
 [ssh]
 github_alias = "${gh_alias}"
@@ -85,25 +148,17 @@ github_agent_item = ""
 gitlab_agent_item = ""
 
 [direnv]
-root_directories = [$(csv_to_toml_array "$dirs")]
-envrc_example_target = "${envrc_target}"
+root_directories = [$(csv_to_toml_array "$normalized_dirs")]
+envrc_example_target = "${normalized_envrc_target}"
 EOF
 
-  if [[ "$scaffold" =~ ^[Yy]$ ]]; then
-    local dir
-    IFS=',' read -r -a dir_array <<< "$dirs"
-    for dir in "${dir_array[@]}"; do
-      mkdir -p "${dir/#\~/$HOME}"
-    done
-  fi
-
-  if [[ -f "$EXAMPLE_ENVRC_SRC" && -n "$envrc_target" ]]; then
-    mkdir -p "$(dirname "${envrc_target/#\~/$HOME}")"
-    cp "$EXAMPLE_ENVRC_SRC" "${envrc_target/#\~/$HOME}"
+  if [[ -f "$EXAMPLE_ENVRC_SRC" && -n "$normalized_envrc_target" ]]; then
+    mkdir -p "$(dirname "$normalized_envrc_target")"
+    cp "$EXAMPLE_ENVRC_SRC" "$normalized_envrc_target"
   fi
 
   echo "Created local work context: ${WORK_CONTEXT_DIR}/${slug}.toml"
-  chezmoi apply || true
+  chezmoi_apply || true
 }
 
 list_contexts() {
@@ -122,7 +177,7 @@ remove_context() {
   [[ -n "$slug" ]] || { echo "--slug is required" >&2; exit 1; }
   rm -f "${WORK_CONTEXT_DIR}/${slug}.toml"
   echo "Removed local work context: ${WORK_CONTEXT_DIR}/${slug}.toml"
-  chezmoi apply || true
+  chezmoi_apply || true
 }
 
 cmd="${1:-}"

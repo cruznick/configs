@@ -7,7 +7,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io).
 macOS or Linux:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/cruznick/configs/main/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/cruznick/configs/master/install.sh)"
 ```
 
 What bootstrap does:
@@ -35,6 +35,10 @@ Merge rules:
 Profile model:
 - `profile = personal | work`
 - `provider = gh | gl`
+
+`work` is a generic support mode only. Concrete work identity still comes from
+local work-context files and path-based matching, not from a single global
+profile switch.
 
 Local machine selection lives in:
 

@@ -19,6 +19,7 @@ Notes:
 - work contexts are local-only
 - work contexts affect only Git and direnv-related behavior
 - local override `work_contexts = [...]` is an optional filter over local context files
+- `profile = "work"` is only a generic support mode; concrete work identity is still path-scoped by local work contexts
 
 ## Debugging
 

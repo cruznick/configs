@@ -1,4 +1,4 @@
-{{ $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson }}
+{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
 #!/usr/bin/env bash
 # run_onchange_40-generate-work-gitconfigs.sh — Generate local work git fragments and clean legacy artifacts.
 set -euo pipefail

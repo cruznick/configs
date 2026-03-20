@@ -4,4 +4,8 @@
 #   ~/.config/dotfiles/overrides.toml
 #
 # Legacy top-level [data] values are no longer required for baseline bootstrap.
+# Persist sourceDir so plain `chezmoi apply` continues to work after
+# `chezmoi init --source ...`.
+sourceDir = {{ .chezmoi.sourceDir | quote }}
+
 [data]

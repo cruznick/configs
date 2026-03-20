@@ -19,12 +19,19 @@ infer_provider_from_remote() {
 
 match_work_context_from_pwd() {
   local pwd_path="${PWD}/"
+  local pwd_physical=""
+  pwd_physical="$(pwd -P 2>/dev/null || true)"
+  [[ -n "$pwd_physical" ]] && pwd_physical="${pwd_physical}/"
 {{- range $slug := ($cfg.selected_work_contexts | default list) }}
 {{- $ctx := index ($cfg.work_contexts | default dict) $slug | default dict }}
 {{- $match := (index $ctx "match") | default dict }}
-{{- range ((index $match "directories") | default list) }}
+{{- range $dir := ((index $match "directories") | default list) }}
+{{- $expandedDir := regexReplaceAll "^~" $dir (env "HOME") | trimSuffix "/" }}
   case "$pwd_path" in
-    "{{ . }}/"*) echo "{{ $slug }}"; return 0 ;;
+    "{{ $expandedDir }}/"*) echo "{{ $slug }}"; return 0 ;;
+  esac
+  case "$pwd_physical" in
+    "{{ $expandedDir }}/"*) echo "{{ $slug }}"; return 0 ;;
   esac
 {{- end }}
 {{- end }}

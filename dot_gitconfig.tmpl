@@ -71,8 +71,9 @@
 {{- range $slug := ($cfg.selected_work_contexts | default list) }}
 {{- $ctx := index ($cfg.work_contexts | default dict) $slug | default dict }}
 {{- $match := (index $ctx "match") | default dict }}
-{{- range ((index $match "directories") | default list) }}
-[includeIf "gitdir:{{ . }}/"]
+{{- range $dir := ((index $match "directories") | default list) }}
+{{- $expandedDir := regexReplaceAll "^~" $dir (env "HOME") | trimSuffix "/" }}
+[includeIf "gitdir:{{ $expandedDir }}/.git"]
   path = {{ printf "~/.config/dotfiles/generated/git/work-%s.gitconfig" $slug | quote }}
 
 {{- end }}

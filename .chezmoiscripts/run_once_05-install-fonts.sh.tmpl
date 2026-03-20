@@ -16,6 +16,11 @@ if [[ ! -d "$FONT_SRC" ]]; then
   exit 0
 fi
 
+if ! mkdir -p "$FONT_DEST"; then
+  echo "Skipping font install: unable to create $FONT_DEST"
+  exit 0
+fi
+
 installed=0
 skipped=0
 
