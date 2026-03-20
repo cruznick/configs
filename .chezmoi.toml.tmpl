@@ -3,12 +3,20 @@
 {{- $githubPersonal := promptStringOnce . "githubPersonal" "Personal GitHub username" -}}
 {{- $artifactoryUser := promptStringOnce . "artifactoryUser" "Work registry username (leave blank if not applicable)" -}}
 {{- $op1pVault := promptStringOnce . "op1pVault" "1Password vault name for SSH keys (e.g. GitKeys, Work)" -}}
+{{- $installWorkApps := promptBoolOnce . "installWorkApps" "Install work apps (openlens, okta-verify, pritunl)?" -}}
+{{- $installPersonalApps := promptBoolOnce . "installPersonalApps" "Install personal apps (spotify, tidal, meetingbar, shottr, istat-menus)?" -}}
+{{- $installAiTools := promptBoolOnce . "installAiTools" "Install AI tools (claude, claude-code, codex, chatgpt)?" -}}
+{{- $primaryMachine := promptBoolOnce . "primaryMachine" "Is this the primary machine? (manages iStat Menus config source of truth)" -}}
 
 sourceDir = "{{ .chezmoi.sourceDir }}"
 
 [data]
-  name             = {{ $name | quote }}
-  personalEmail    = {{ $personalEmail | quote }}
-  githubPersonal   = {{ $githubPersonal | quote }}
-  artifactoryUser  = {{ $artifactoryUser | quote }}
-  op1pVault        = {{ $op1pVault | quote }}
+  name               = {{ $name | quote }}
+  personalEmail      = {{ $personalEmail | quote }}
+  githubPersonal     = {{ $githubPersonal | quote }}
+  artifactoryUser    = {{ $artifactoryUser | quote }}
+  op1pVault          = {{ $op1pVault | quote }}
+  installWorkApps    = {{ $installWorkApps }}
+  installPersonalApps = {{ $installPersonalApps }}
+  installAiTools     = {{ $installAiTools }}
+  primaryMachine     = {{ $primaryMachine }}

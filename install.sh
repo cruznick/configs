@@ -102,10 +102,11 @@ main() {
 Next steps (one-time manual actions):
   1. Reload shell:          source ~/.zshrc
   2. Verify SSH agent:      ssh-add -L
-  3. glab personal auth:    GLAB_CONFIG_DIR=~/.config/glab-personal glab auth login --hostname gitlab.com
-  4. AWS SSO login:         aws sso login --profile development
-  5. EKS kubeconfig:        install-eks-kubeconfig (run the script in ~/bin/)
-  6. Switch npm registry:   ln -sf ~/.npmrcs/default ~/.npmrc  (for personal projects)
+  3. Personal tokens:       cp personal/.envrc.example ~/repos/personal/gh/.envrc && direnv allow ~/repos/personal/gh/.envrc
+  4. Add a work company:    work-config add --slug=acme --platform=gh --email=you@acme.com
+  5. glab personal auth:    GLAB_CONFIG_DIR=~/.config/glab-personal glab auth login --hostname gitlab.com
+  6. AWS SSO login:         aws sso login --profile development
+  7. EKS kubeconfig:        install-eks-kubeconfig both
 
 EOF
 }

@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# dots-brew-audit — Compare installed brew packages against the tracked brew script.
+#
+# Shows:
+#   UNTRACKED  — installed on this machine but not in the brew script (candidates to add)
+#   MISSING    — in the brew script but not installed (will install on next chezmoi apply)
+#
+# Usage: dots-brew-audit [--missing]
+#   --missing   also show packages in script but not installed (default: hidden)
+set -euo pipefail
+
+SHOW_MISSING=0
+[[ "${1:-}" == "--missing" ]] && SHOW_MISSING=1
+
+BREW_SCRIPT="$(chezmoi source-path)/.chezmoiscripts/run_onchange_10-install-brew.sh.tmpl"
+
+if [[ ! -f "$BREW_SCRIPT" ]]; then
+  echo "error: brew script not found at $BREW_SCRIPT" >&2
+  exit 1
+fi
+
+# ── Extract packages tracked in the brew script ───────────────────────────────
+# Walks brew install --formula / --cask blocks and collects the package tokens.
+# Skips tmpl conditionals, comments, and shell syntax.
+_extract_tracked() {
+  local in_block=0
+  while IFS= read -r line; do
+    # Skip template conditionals and comments
+    [[ "$line" =~ ^\s*\{\{ ]] && { in_block=0; continue; }
+    [[ "$line" =~ ^\s*# ]]    && continue
+
+    # Start of a brew install block
+    if [[ "$line" =~ brew\ install\ --(formula|cask) ]]; then
+      in_block=1
+      continue
+    fi
+
+    if [[ $in_block -eq 1 ]]; then
+      # A continuation line: indented or ends with backslash
+      stripped="${line//\\/}"
+      stripped="${stripped#"${stripped%%[![:space:]]*}"}"  # ltrim
+
+      if [[ -n "$stripped" && ( "$line" =~ ^[[:space:]] || "$line" =~ \\$ ) ]]; then
+        # Split tokens and emit each package name
+        for token in $stripped; do
+          # Package names: start with letter or digit, no shell-special chars
+          [[ "$token" =~ ^[a-zA-Z0-9][a-zA-Z0-9@._+/-]*$ ]] && echo "$token"
+        done
+      else
+        in_block=0
+      fi
+    fi
+  done < "$BREW_SCRIPT"
+
+  # Also capture the hashicorp tap install (emitted as bare formula name)
+  grep -q 'hashicorp/tap/vault' "$BREW_SCRIPT" && echo "vault"
+}
+
+# ── Intentional exclusions (not tracked in brew script by design) ─────────────
+# These are managed by other tools or are intentionally manual.
+declare -A EXCLUDED_REASON
+EXCLUDED_REASON["chezmoi"]="installed by install.sh, not brew script"
+EXCLUDED_REASON["terraform"]="managed by asdf (avoids shim conflicts)"
+EXCLUDED_REASON["kubernetes-cli"]="managed by asdf (avoids shim conflicts)"
+EXCLUDED_REASON["nvm"]="managed by asdf (use: asdf plugin add nodejs)"
+EXCLUDED_REASON["pyenv"]="managed by asdf (use: asdf plugin add python)"
+EXCLUDED_REASON["macfuse"]="manual install — https://osxfuse.github.io"
+EXCLUDED_REASON["pup"]="Datadog CLI (datadog-labs/pack tap) — tracked in installWorkApps"
+EXCLUDED_REASON["tcl-tk"]="keg-only build dep (Python/pyenv)"
+EXCLUDED_REASON["tcl-tk@8"]="keg-only build dep (Python/pyenv)"
+EXCLUDED_REASON["zlib"]="keg-only build dep"
+
+# ── Get installed packages ────────────────────────────────────────────────────
+INSTALLED_FORMULAE="$(brew list --formula --installed-on-request 2>/dev/null | sort)"
+INSTALLED_CASKS="$(brew list --cask 2>/dev/null | sort)"
+INSTALLED_ALL="$(printf '%s\n%s\n' "$INSTALLED_FORMULAE" "$INSTALLED_CASKS" | sort -u)"
+
+TRACKED="$(_extract_tracked | sort -u)"
+
+# ── Diff ──────────────────────────────────────────────────────────────────────
+UNTRACKED="$(comm -23 <(echo "$INSTALLED_ALL") <(echo "$TRACKED"))"
+MISSING="$(comm -13 <(echo "$INSTALLED_ALL") <(echo "$TRACKED"))"
+
+# ── Output ────────────────────────────────────────────────────────────────────
+BOLD=$'\033[1m'; YELLOW=$'\033[1;33m'; RED=$'\033[1;31m'; DIM=$'\033[2m'; RESET=$'\033[0m'
+
+echo ""
+echo "${BOLD}dots-brew-audit${RESET}"
+echo "${DIM}Comparing: brew list --installed-on-request  vs  run_onchange_10-install-brew.sh.tmpl${RESET}"
+echo ""
+
+if [[ -z "$UNTRACKED" ]]; then
+  echo "✅ All explicitly installed packages are tracked in the brew script."
+else
+  echo "${YELLOW}UNTRACKED${RESET} — installed on this machine, not in brew script:"
+  echo "${DIM}(Review and add to the appropriate section in run_onchange_10-install-brew.sh.tmpl)${RESET}"
+  echo ""
+  REAL_UNTRACKED=""
+  INTENTIONAL=""
+  while IFS= read -r pkg; do
+    [[ -z "$pkg" ]] && continue
+    if [[ -n "${EXCLUDED_REASON[$pkg]+_}" ]]; then
+      INTENTIONAL+="$pkg"$'\n'
+    else
+      REAL_UNTRACKED+="$pkg"$'\n'
+    fi
+  done <<< "$UNTRACKED"
+
+  if [[ -n "$REAL_UNTRACKED" ]]; then
+    while IFS= read -r pkg; do
+      [[ -z "$pkg" ]] && continue
+      if echo "$INSTALLED_CASKS" | grep -qx "$pkg"; then
+        printf "  %-40s %s\n" "$pkg" "${DIM}[cask]${RESET}"
+      else
+        printf "  %-40s %s\n" "$pkg" "${DIM}[formula]${RESET}"
+      fi
+    done <<< "$REAL_UNTRACKED"
+  else
+    echo "✅ All explicitly installed packages are tracked (or intentionally excluded)."
+  fi
+
+  if [[ -n "$INTENTIONAL" ]]; then
+    echo ""
+    echo "${DIM}Intentionally untracked:${RESET}"
+    while IFS= read -r pkg; do
+      [[ -z "$pkg" ]] && continue
+      printf "  ${DIM}%-25s — %s${RESET}\n" "$pkg" "${EXCLUDED_REASON[$pkg]}"
+    done <<< "$INTENTIONAL"
+  fi
+fi
+
+if [[ $SHOW_MISSING -eq 1 ]]; then
+  echo ""
+  if [[ -z "$MISSING" ]]; then
+    echo "✅ All tracked packages are installed."
+  else
+    echo "${RED}MISSING${RESET} — in brew script but not installed on this machine:"
+    echo "${DIM}(Installs in opt-in sections are expected if that flag is false on this machine)${RESET}"
+    echo ""
+    while IFS= read -r pkg; do
+      [[ -z "$pkg" ]] && continue
+      echo "  $pkg"
+    done <<< "$MISSING"
+  fi
+fi
+
+echo ""

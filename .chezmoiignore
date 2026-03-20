@@ -2,6 +2,10 @@
 legacy/**
 legacy/
 
+# Fonts — installed to ~/Library/Fonts/ by run_once_05, not deployed to ~/font/
+font/
+font/**
+
 # Documentation only
 docs/**
 docs/
@@ -9,6 +13,10 @@ docs/
 # Company config fragments — sourced by templates, not deployed directly
 companies/**
 companies/
+
+# Personal identity envrc examples — reference only, not deployed
+personal/**
+personal/
 
 # chezmoi internal — these special dirs are handled automatically, not ignored
 .chezmoidata/**
@@ -23,3 +31,12 @@ LICENSE
 
 # macOS
 .DS_Store
+
+# iStat Menus config — only deployed on primary machine (source of truth)
+# On secondary machines set primaryMachine=false at chezmoi init
+{{ if not .primaryMachine }}
+Library/Preferences/com.bjango.istatmenus.plist
+Library/Preferences/com.bjango.istatmenus.menubar.7.plist
+Library/Preferences/com.bjango.istatmenus.agent.plist
+Library/Preferences/com.bjango.istatmenus.status.plist
+{{ end }}

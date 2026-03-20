@@ -139,6 +139,23 @@ alias cold='colima delete'
 alias cc='claude'
 alias cx='codex'
 
+# Dotfiles
+alias dots-apply='chezmoi apply'
+alias dots-update='chezmoi update'
+alias dots-diff='chezmoi diff'
+alias dots-edit='chezmoi edit'
+# dots-capture-rect: sync Rectangle Pro shortcuts from THIS machine → repo
+# dots-capture-istat: sync iStat Menus config from THIS machine → repo (primary machine only)
+# dots-capture: sync both (primary machine only)
+alias dots-capture-rect='chezmoi add ~/Library/Preferences/com.knollsoft.Hookshot.plist'
+alias dots-capture-istat='chezmoi add \
+  ~/Library/Preferences/com.bjango.istatmenus.plist \
+  ~/Library/Preferences/com.bjango.istatmenus.menubar.7.plist \
+  ~/Library/Preferences/com.bjango.istatmenus.agent.plist \
+  ~/Library/Preferences/com.bjango.istatmenus.status.plist'
+alias dots-capture='dots-capture-rect && dots-capture-istat'
+alias dots-allow='direnv allow'
+
 # =============================================================================
 # FZF
 # =============================================================================
@@ -205,6 +222,18 @@ command -v uv >/dev/null && eval "$(uv generate-shell-completion zsh)" 2>/dev/nu
 # 1PASSWORD SSH AGENT
 # =============================================================================
 export SSH_AUTH_SOCK="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+
+# Auto op signin when entering a directory with an op://-backed .envrc
+if command -v op >/dev/null; then
+  _auto_op_signin() {
+    local envrc="$PWD/.envrc"
+    if [[ -f "$envrc" ]] && grep -ql 'op://' "$envrc" 2>/dev/null; then
+      op whoami &>/dev/null || eval "$(op signin --account {{ .personalEmail }})" 2>/dev/null || true
+    fi
+  }
+  autoload -Uz add-zsh-hook
+  add-zsh-hook chpwd _auto_op_signin
+fi
 
 # =============================================================================
 # GLAB helpers

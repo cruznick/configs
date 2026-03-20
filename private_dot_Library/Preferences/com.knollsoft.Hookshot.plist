@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSWindow Frame SUUpdateAlert2</key>
+	<string>1435 756 569 402 0 0 3440 1410 </string>
+	<key>Paddle-Rectangle Pro-580977-SD</key>
+	<string>0904dbb340264d0fe444526d30c84cfc3f939dd5b7265f6f6e0ac3e9d6944d6f</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUHasLaunchedBefore</key>
+	<true/>
+	<key>SULastCheckTime</key>
+	<date>2026-03-18T11:47:41Z</date>
+	<key>SUUpdateGroupIdentifier</key>
+	<integer>3291974654</integer>
+	<key>allowAnyShortcut</key>
+	<true/>
+	<key>autoRestartOnWake</key>
+	<integer>1</integer>
+	<key>displayCache</key>
+	<string>[{"lastEncountered":794943103.690251,"id":"37D8832A-2D66-02CA-B9F7-8F30A301B230","name":"Built-in Retina Display","frame":[[0,0],[1512,982]]},{"lastEncountered":795120601.49029,"id":"1558C9EB-BFA6-4223-9C05-76007B36F145","name":"LG HDR QHD","frame":[[3440,-903],[1440,2560]]},{"lastEncountered":794440908.839995,"id":"BDD39A94-53A4-413C-99D3-B62945F89513","name":"","frame":[[0,0],[1920,1080]]},{"lastEncountered":794858931.438512,"frame":[[1512,360],[1920,1080]],"name":"SyncMaster","id":"CEF5B451-5B58-49F5-BDB1-EB785210B87E"},{"lastEncountered":795120601.490287,"frame":[[0,0],[3440,1440]],"name":"ASUS VG34V","id":"B280929D-602F-451F-ACE6-D7737B6E7AA7"}]</string>
+	<key>dropPaneLocation</key>
+	<integer>7</integer>
+	<key>fld</key>
+	<string>cOpQxSnWLn9e1ToEu51TW1W+yCnmn+MfDDjHhZiV0/1DAY51QyWQgKKZxcMS/ps=</string>
+	<key>footprintAnimationDurationMultiplier</key>
+	<real>0.75</real>
+	<key>hapticFeedbackOnSnap</key>
+	<integer>1</integer>
+	<key>installVersion</key>
+	<string>214</string>
+	<key>internalTilingNotified</key>
+	<true/>
+	<key>landscapeSnapAreas</key>
+	<string>[3,{"action":16},7,{"compound":-4},2,{"action":2},5,{"compound":-3},4,{"compound":-2},6,{"action":13},1,{"action":15},8,{"action":14}]</string>
+	<key>lastVersion</key>
+	<string>215</string>
+	<key>launchOnLogin</key>
+	<true/>
+	<key>snapPanelActions</key>
+	<string>[{"windowAction":20},{"windowAction":0},{"windowAction":21},{"windowAction":23},{"windowAction":1},{"windowAction":24},{"windowAction":30},{"windowAction":31},{"windowAction":121},{"windowAction":159},{"windowAction":157},{"windowAction":160}]</string>
+	<key>stashEnabled</key>
+	<integer>1</integer>
+	<key>stashInMenu</key>
+	<integer>1</integer>
+	<key>stashTabs</key>
+	<integer>1</integer>
+</dict>
+</plist>

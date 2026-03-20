@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# run_onchange_10-install-brew.sh — Install Homebrew packages
+# Re-runs automatically whenever this file changes (add/remove a package = re-run on all machines).
+set -euo pipefail
+
+{{ if ne .chezmoi.os "darwin" -}}
+echo "Skipping brew install: not macOS"
+exit 0
+{{ end -}}
+
+log() { printf "\n\033[1;34m==> %s\033[0m\n" "$*"; }
+
+command -v brew >/dev/null 2>&1 || { echo "Homebrew not found. Run install.sh first."; exit 1; }
+
+log "brew update"
+brew update
+
+# ── Core formulae (always) ─────────────────────────────────────────────────────
+log "Installing core formulae"
+brew install --formula \
+  git jq yq ripgrep fd bat eza zoxide starship fzf \
+  neovim tree coreutils gawk gnu-sed \
+  awscli kubectx helm k9s stern \
+  pulumi \
+  asdf uv pnpm \
+  glab gh difftastic \
+  direnv \
+  colima docker docker-compose buildkit docker-completion
+
+# ── HashiCorp vault ────────────────────────────────────────────────────────────
+brew tap hashicorp/tap 2>/dev/null || true
+brew install hashicorp/tap/vault || brew upgrade hashicorp/tap/vault || true
+
+# ── Core casks (always) ────────────────────────────────────────────────────────
+log "Installing core casks"
+brew install --cask \
+  1password 1password-cli \
+  cursor cursor-cli ghostty \
+  raycast \
+  session-manager-plugin \
+  google-chrome slack zoom \
+  rectangle-pro \
+  visual-studio-code
+
+# ── Work apps (opt-in) ────────────────────────────────────────────────────────
+{{ if .installWorkApps -}}
+log "Installing work apps"
+brew tap datadog-labs/pack 2>/dev/null || true
+brew install --formula \
+  datadog-labs/pack/pup
+brew install --cask \
+  openlens okta-verify pritunl
+{{ end -}}
+
+# ── Personal apps (opt-in) ────────────────────────────────────────────────────
+{{ if .installPersonalApps -}}
+log "Installing personal apps"
+brew install --cask \
+  spotify tidal eqmac chatgpt \
+  meetingbar shottr istat-menus \
+  elgato-stream-deck logi-options+ yubico-authenticator
+{{ end -}}
+
+# ── AI tools (opt-in) ─────────────────────────────────────────────────────────
+{{ if .installAiTools -}}
+log "Installing AI tools"
+brew install --cask \
+  claude claude-code codex codex-app
+{{ end -}}
+
+# ── fzf shell integration (no rc changes — chezmoi manages zshrc) ─────────────
+if [[ -x "$(brew --prefix)/opt/fzf/install" ]]; then
+  "$(brew --prefix)/opt/fzf/install" --key-bindings --completion --no-update-rc >/dev/null 2>&1 || true
+fi
+
+echo ""
+echo "✅ run_onchange_10: brew packages installed"
+echo ""
+echo "⚡ Notes:"
+echo "  - terraform and kubectl are managed by asdf (run_once_20 handles install)"
+echo "  - macfuse remains manual — install from https://osxfuse.github.io"

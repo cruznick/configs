@@ -1,0 +1,26 @@
+# .envrc.example — Personal identity secrets (direnv + 1Password)
+#
+# Usage (once per machine, per identity root):
+#   cp .envrc.example ~/repos/personal/gh/.envrc  && direnv allow ~/repos/personal/gh/.envrc
+#   cp .envrc.example ~/repos/personal/gl/.envrc  && direnv allow ~/repos/personal/gl/.envrc
+#
+# These load automatically when you cd into any personal repo dir.
+# They are unloaded when you cd into a work dir (which has its own .envrc).
+# Never committed — add to .gitignore in your personal repos root.
+
+OP_VAULT="Familia"   # your 1Password personal vault name
+
+if ! op whoami &>/dev/null 2>&1; then
+  echo "direnv: 1Password locked — run: op signin" >&2
+else
+  # ── GitHub personal token ──────────────────────────────────────────────────
+  # Create at: github.com → Settings → Developer settings → Personal access tokens
+  # export GITHUB_TOKEN="$(op read "op://${OP_VAULT}/GitHub/token" 2>/dev/null)"
+
+  # ── GitLab personal token ──────────────────────────────────────────────────
+  # Create at: gitlab.com → Preferences → Access tokens
+  # export GITLAB_TOKEN="$(op read "op://${OP_VAULT}/GitLab/token" 2>/dev/null)"
+
+  # ── Add other personal tokens here ────────────────────────────────────────
+  # Pattern: export MY_TOKEN="$(op read "op://${OP_VAULT}/Item Name/field" 2>/dev/null)"
+fi
