@@ -1,7 +1,0 @@
-# Legacy compatibility example only.
-#
-# New local work-context definitions belong in:
-#   ~/.config/dotfiles/work-contexts/<slug>.toml
-#
-# Legacy `.chezmoidata/companies.toml` support is transitional and will be
-# removed after migration.

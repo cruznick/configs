@@ -1,3 +1,5 @@
+# Generic support mode only.
+# Concrete work identity still comes from local work-context files.
 [profile]
 name = "work"
 

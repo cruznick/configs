@@ -102,7 +102,7 @@ Create one with:
 dots-work create
 ```
 
-See [docs/ADD-COMPANY.md](docs/ADD-COMPANY.md).
+See [docs/WORK-CONTEXTS.md](docs/WORK-CONTEXTS.md).
 
 ## Secrets
 

@@ -1,4 +1,4 @@
-# Adding a Local Work Context
+# Local Work Contexts
 
 Work contexts are local-only. They are not stored in the Git-tracked dotfiles repo.
 

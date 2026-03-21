@@ -16,9 +16,6 @@ primary_machine = false
 [providers]
 enabled = ["gh", "gl"]
 
-[companies]
-allowed = []
-
 [git]
 signing_enabled = true
 commit_gpgsign = true
@@ -34,4 +31,3 @@ zinit = true
 asdf = true
 ssh_key_export = true
 onepassword = true
-

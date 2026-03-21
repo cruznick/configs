@@ -1,6 +1,6 @@
-; Work company private npm registry
+; Local work-context private registry example
 ; Managed by chezmoi — this file is a reference template.
-; To activate: set WORK_NPM_REGISTRY in your work secrets and run chezmoi apply.
+; To activate: set WORK_NPM_REGISTRY in your local secrets and run chezmoi apply.
 ;
 ; Replace WORK_REGISTRY_URL with your registry URL, e.g.:
 ;   https://your-company.jfrog.io/artifactory/api/npm/npm/

@@ -175,7 +175,8 @@ Local machine selection:
   ~/.config/dotfiles/overrides.toml
   ~/.config/dotfiles/work-contexts/
 
-Legacy .chezmoidata/companies.toml support is transitional and will be removed after migration.
+If you still have legacy .chezmoidata/companies.toml data, migrate it soon.
+Legacy support is transitional and will be removed after migration.
 EOF
 }
 

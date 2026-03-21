@@ -11,7 +11,7 @@ font/**
 docs/**
 docs/
 
-# Company config fragments — sourced by templates, not deployed directly
+# Local work-context helper examples — not deployed directly
 companies/**
 companies/
 
