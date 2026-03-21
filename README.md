@@ -7,7 +7,7 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io).
 macOS or Linux:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/cruznick/configs/master/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/cruznick/configs/main/install.sh)"
 ```
 
 What bootstrap does:
