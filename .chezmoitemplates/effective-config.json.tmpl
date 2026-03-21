@@ -35,7 +35,7 @@
 {{- if stat $profilePath -}}
   {{- $profileData = include $profilePath | fromToml -}}
 {{- end -}}
-{{- $cfg := mergeOverwrite (deepCopy $defaults) $profileData -}}
+{{- $cfg := mergeOverwrite (deepCopy $defaults) $profileData $overrides -}}
 
 {{- $activeProvider := (((index (index $cfg "providers" | default dict) "default") | default "") | toString) -}}
 {{- if eq $activeProvider "" -}}

@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# dots-brew — Render and apply the active Homebrew Brewfile groups.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  dots-brew render [--stdout]
+  dots-brew sync
+  dots-brew update
+  dots-brew plan
+  dots-brew status
+  dots-brew audit [--missing]
+  dots-brew groups
+
+Commands:
+  render   write the active Brewfile to stdout
+  sync     install the active Brewfile with brew bundle
+  update   brew update && brew upgrade && sync declared Brewfiles
+  plan     dry-run the install/upgrade work sync would perform
+  status   show active groups and current drift summary
+  audit    compare installed packages against the active Brewfile
+  groups   show repo-tracked Brewfile groups and local enablement
+EOF
+}
+
+require_brew() {
+  command -v brew >/dev/null 2>&1 || {
+    echo "Homebrew not found" >&2
+    exit 1
+  }
+}
+
+source_dir() {
+  local script_dir repo_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  repo_dir="$(cd "$script_dir/.." && pwd)"
+  if [[ -f "$repo_dir/.chezmoitemplates/homebrew-active-brewfile.tmpl" ]]; then
+    printf '%s\n' "$repo_dir"
+    return 0
+  fi
+  chezmoi source-path
+}
+
+audit_command() {
+  local script_dir candidate
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  candidate="$script_dir/executable_dots-brew-audit"
+  if [[ -x "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  printf '%s\n' "dots-brew-audit"
+}
+
+render_brewfile() {
+  chezmoi -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/homebrew-active-brewfile.tmpl" . }}'
+}
+
+with_brewfile() {
+  local tmp
+  tmp="$(mktemp "${TMPDIR:-/tmp}/dotfiles-brew.XXXXXX")"
+  trap 'rm -f "$tmp"' RETURN
+  render_brewfile >"$tmp"
+  "$@" "$tmp"
+}
+
+plan_with_brewfile() {
+  local file="$1"
+  echo "dots-brew plan"
+  echo ""
+  echo "Active groups:"
+  "$0" groups
+  echo ""
+  echo "Planned sync command:"
+  echo "  brew bundle install --no-lock --file=$file"
+  echo ""
+  if brew bundle check --verbose --file "$file"; then
+    echo "No installs or upgrades are needed."
+  else
+    echo ""
+    echo "Changes are needed to match the active Brewfile."
+    echo "Use: dots-brew sync"
+  fi
+}
+
+status_report() {
+  local audit_json
+  echo "dots-brew status"
+  echo ""
+  echo "Active groups:"
+  "$0" groups
+  if ! command -v brew >/dev/null 2>&1; then
+    echo ""
+    echo "Drift summary:"
+    echo "  brew not installed; drift checks unavailable"
+    return 0
+  fi
+
+  audit_json="$("$(audit_command)" --json)"
+  echo ""
+  echo "Drift summary:"
+  echo "  missing: $(printf '%s' "$audit_json" | jq -r '.missing_count')"
+  echo "  untracked: $(printf '%s' "$audit_json" | jq -r '.untracked_count')"
+  echo "  intentionally untracked: $(printf '%s' "$audit_json" | jq -r '.intentional_untracked_count')"
+  echo ""
+  echo "Details:"
+  echo "  audit: dots-brew audit"
+  echo "  install drift only: dots-brew audit --missing"
+}
+
+cmd="${1:-}"
+case "$cmd" in
+  render)
+    render_brewfile
+    ;;
+  sync)
+    require_brew
+    with_brewfile brew bundle install --no-lock --file
+    ;;
+  update)
+    require_brew
+    brew update
+    brew upgrade
+    with_brewfile brew bundle install --no-lock --file
+    ;;
+  plan)
+    require_brew
+    with_brewfile plan_with_brewfile
+    ;;
+  status)
+    status_report
+    ;;
+  audit)
+    shift || true
+    exec "$(audit_command)" "$@"
+    ;;
+  groups)
+    chezmoi -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}' \
+      | jq -r '
+          .optional_integrations as $o
+          | [
+              ["core", (if $o | has("homebrew_core") then $o.homebrew_core else true end)],
+              ["dev", (if $o | has("homebrew_dev") then $o.homebrew_dev else true end)],
+              ["apps", (if $o | has("homebrew_apps") then $o.homebrew_apps else true end)],
+              ["extras", (if $o | has("homebrew_extras") then $o.homebrew_extras else false end)]
+            ][]
+          | "\(.[0])\t\((.[1]) | if . then "enabled" else "disabled" end)\thomebrew/Brewfile.\(.[0])"
+        '
+    ;;
+  ""|-h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 1
+    ;;
+esac

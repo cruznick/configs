@@ -17,6 +17,7 @@ What bootstrap does:
 4. Creates `~/.config/dotfiles/overrides.toml` if missing
 5. Runs `chezmoi apply`
 6. Runs optional setup hooks without blocking bootstrap
+7. Applies the active Homebrew Brewfile groups on macOS when Homebrew is available
 
 ## Config Model
 
@@ -55,6 +56,67 @@ Notes:
 - `work_contexts = [...]` is an optional local filter
 - work contexts affect only Git and direnv-related behavior
 
+## Manual App Exports
+
+Manual app-export artifacts live under `apps/`.
+
+- `apps/istat-menus/`
+- `apps/rectangle-pro/`
+
+These are reference exports only.
+
+- They are not managed by `chezmoi apply`
+- They are not part of bootstrap
+- They must be exported and imported manually
+
+See [apps/README.md](/Users/bjm/repos/personal/gh/configs/apps/README.md).
+
+## Homebrew
+
+Homebrew state is declarative and Brewfile-driven.
+
+Source of truth:
+- `homebrew/Brewfile.core`
+- `homebrew/Brewfile.dev`
+- `homebrew/Brewfile.apps`
+- `homebrew/Brewfile.extras`
+
+The active machine Brewfile is rendered from those repo-tracked group files using
+the current effective config. The install hook and audit helper both consume that
+rendered Brewfile.
+
+Default group enablement:
+- `homebrew_core = true`
+- `homebrew_dev = true`
+- `homebrew_apps = true`
+- `homebrew_extras = false`
+
+Machine-local group selection uses the existing override file:
+
+```toml
+# ~/.config/dotfiles/overrides.toml
+[optional_integrations]
+homebrew_core = true
+homebrew_dev = true
+homebrew_apps = true
+homebrew_extras = false
+```
+
+Workflows:
+- Update declared brew state: `dots-brew update`
+- Install/sync declared brew state: `dots-brew sync`
+- Preview sync work: `dots-brew plan`
+- Show active groups and drift summary: `dots-brew status`
+- Audit drift: `dots-brew audit` or `dots-brew audit --missing`
+- Show active groups: `dots-brew groups`
+- Add a package/app: edit the right file under `homebrew/Brewfile.*`, then run `chezmoi apply` or `dots-brew sync`
+- Remove a package/app: remove it from the right file under `homebrew/Brewfile.*`, then run `chezmoi apply` or `dots-brew sync`
+
+Operational rule:
+- direct `brew install` is fine for testing, but persistent state must be added to `homebrew/Brewfile.*`
+
+See [docs/HOMEBREW.md](docs/HOMEBREW.md).
+
 ## Debugging
 
 ```bash
@@ -79,11 +141,16 @@ dots-diff
 dots-edit
 dots-debug --json
 dots-profile
+dots-brew update
+dots-brew plan
+dots-brew status
+dots-brew audit --missing
 ```
 
 ## Optional Integrations
 
 These never block baseline bootstrap:
+- Homebrew package sync if Homebrew is unavailable during apply or bundle operations fail
 - Homebrew extras
 - zinit
 - asdf

@@ -140,6 +140,13 @@ profile = "personal"
 provider = "gh"
 work_contexts = []
 primary_machine = false
+
+# Optional machine-local Homebrew selection:
+# [optional_integrations]
+# homebrew_core = true
+# homebrew_dev = true
+# homebrew_apps = true
+# homebrew_extras = false
 EOF
   ok "Created $OVERRIDES_FILE"
 }

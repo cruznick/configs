@@ -26,6 +26,8 @@ glab_config_dir = ""
 
 [optional_integrations]
 homebrew_core = true
+homebrew_dev = true
+homebrew_apps = true
 homebrew_extras = false
 zinit = true
 asdf = true

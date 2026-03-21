@@ -149,16 +149,6 @@ alias dots-update='chezmoi update'
 alias dots-diff='chezmoi diff'
 alias dots-edit='chezmoi edit'
 alias dots-work='dots-work'
-# dots-capture-rect: sync Rectangle Pro shortcuts from THIS machine → repo
-# dots-capture-istat: sync iStat Menus config from THIS machine → repo (primary machine only)
-# dots-capture: sync both (primary machine only)
-alias dots-capture-rect='chezmoi add ~/Library/Preferences/com.knollsoft.Hookshot.plist'
-alias dots-capture-istat='chezmoi add \
-  ~/Library/Preferences/com.bjango.istatmenus.plist \
-  ~/Library/Preferences/com.bjango.istatmenus.menubar.7.plist \
-  ~/Library/Preferences/com.bjango.istatmenus.agent.plist \
-  ~/Library/Preferences/com.bjango.istatmenus.status.plist'
-alias dots-capture='dots-capture-rect && dots-capture-istat'
 alias dots-allow='direnv allow'
 
 # =============================================================================

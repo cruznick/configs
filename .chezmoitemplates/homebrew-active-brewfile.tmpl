@@ -1,0 +1,40 @@
+{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
+{{- $optional := (index $cfg "optional_integrations") | default dict -}}
+{{- $coreEnabled := true -}}
+{{- if hasKey $optional "homebrew_core" -}}
+  {{- $coreEnabled = (index $optional "homebrew_core") -}}
+{{- end -}}
+{{- $devEnabled := true -}}
+{{- if hasKey $optional "homebrew_dev" -}}
+  {{- $devEnabled = (index $optional "homebrew_dev") -}}
+{{- end -}}
+{{- $appsEnabled := true -}}
+{{- if hasKey $optional "homebrew_apps" -}}
+  {{- $appsEnabled = (index $optional "homebrew_apps") -}}
+{{- end -}}
+{{- $extrasEnabled := false -}}
+{{- if hasKey $optional "homebrew_extras" -}}
+  {{- $extrasEnabled = (index $optional "homebrew_extras") -}}
+{{- end -}}
+# Generated from repo-tracked Homebrew group files.
+# Source of truth lives under homebrew/.
+{{- if $coreEnabled }}
+
+# group: core
+{{ include "homebrew/Brewfile.core" }}
+{{ end -}}
+{{- if $devEnabled }}
+
+# group: dev
+{{ include "homebrew/Brewfile.dev" }}
+{{ end -}}
+{{- if $appsEnabled }}
+
+# group: apps
+{{ include "homebrew/Brewfile.apps" }}
+{{ end -}}
+{{- if $extrasEnabled }}
+
+# group: extras
+{{ include "homebrew/Brewfile.extras" }}
+{{ end -}}

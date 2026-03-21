@@ -1,4 +1,3 @@
-{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
 # Legacy directory — historical configs, not managed by chezmoi
 legacy/**
 legacy/
@@ -10,6 +9,10 @@ font/**
 # Documentation only
 docs/**
 docs/
+
+# Manual app-export artifacts — reference only, never deployed by chezmoi
+apps/**
+apps/
 
 # Local work-context helper examples — not deployed directly
 companies/**
@@ -36,12 +39,3 @@ LICENSE
 
 # macOS
 .DS_Store
-
-# iStat Menus config — only deployed on primary machine (source of truth)
-# On secondary machines set primaryMachine=false at chezmoi init
-{{ if not ((index ($cfg.identity | default dict) "primary_machine") | default false) }}
-Library/Preferences/com.bjango.istatmenus.plist
-Library/Preferences/com.bjango.istatmenus.menubar.7.plist
-Library/Preferences/com.bjango.istatmenus.agent.plist
-Library/Preferences/com.bjango.istatmenus.status.plist
-{{ end }}
