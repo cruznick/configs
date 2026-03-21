@@ -1,6 +1,13 @@
 {{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
 {{- $identity := $cfg.identity | default dict -}}
 {{- $opSock := joinPath .chezmoi.homeDir "Library" "Group Containers" "2BUA8C4S2C.com.1password" "t" "agent.sock" -}}
+{{- $personalGhSelector := joinPath .chezmoi.homeDir ".ssh" "signing-pubs" "personal-gh.pub" -}}
+{{- $personalGlSelector := joinPath .chezmoi.homeDir ".ssh" "signing-pubs" "personal-gl.pub" -}}
+{{- $optional := $cfg.optional_integrations | default dict -}}
+{{- $onepasswordEnabled := true -}}
+{{- if hasKey $optional "onepassword" -}}
+  {{- $onepasswordEnabled = (index $optional "onepassword") -}}
+{{- end -}}
 # Managed by chezmoi — edit source: dot_ssh/config.tmpl
 
 # Colima (container runtime) — keep first
@@ -9,7 +16,7 @@ Include {{ .chezmoi.homeDir }}/.colima/ssh_config
 {{ end -}}
 
 # ── 1Password SSH agent (all hosts) ──────────────────────────────────────────
-{{- if and ((index ($cfg.optional_integrations | default dict) "onepassword") | default true) (stat $opSock) }}
+{{- if and $onepasswordEnabled (stat $opSock) }}
 Host *
   IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
 {{ end }}
@@ -18,14 +25,22 @@ Host *
 Host github.com-personal
   HostName github.com
   User git
+{{- if stat $personalGhSelector }}
   IdentitiesOnly yes
   IdentityFile ~/.ssh/signing-pubs/personal-gh.pub
+{{- else }}
+  # No exported public-key selector found; rely on the 1Password SSH agent defaults.
+{{- end }}
 
 Host gitlab.com-personal
   HostName gitlab.com
   User git
+{{- if stat $personalGlSelector }}
   IdentitiesOnly yes
   IdentityFile ~/.ssh/signing-pubs/personal-gl.pub
+{{- else }}
+  # No exported public-key selector found; rely on the 1Password SSH agent defaults.
+{{- end }}
 
 # ── Local work identities for Git access ─────────────────────────────────────
 {{ range $slug := ($cfg.selected_work_contexts | default list) -}}
@@ -36,18 +51,30 @@ Host gitlab.com-personal
 Host {{ (index $ssh "github_alias") | default (printf "github.com-%s" $slug) }}
   HostName github.com
   User git
+{{- $ghSelector := ((index $ssh "github_identity_file") | default "") -}}
+{{- if $ghSelector }}
+{{- $ghSelectorAbs := regexReplaceAll "^~" $ghSelector .chezmoi.homeDir -}}
+{{- if stat $ghSelectorAbs }}
   IdentitiesOnly yes
-{{- if (index $ssh "github_identity_file") }}
-  IdentityFile {{ index $ssh "github_identity_file" }}
+  IdentityFile {{ $ghSelector }}
+{{- else }}
+  # Selector file {{ $ghSelector }} is missing; rely on the 1Password SSH agent defaults.
+{{- end }}
 {{- end }}
 {{ end -}}
 {{ if has "gl" $providers }}
 Host {{ (index $ssh "gitlab_alias") | default (printf "gitlab.com-%s" $slug) }}
   HostName gitlab.com
   User git
+{{- $glSelector := ((index $ssh "gitlab_identity_file") | default "") -}}
+{{- if $glSelector }}
+{{- $glSelectorAbs := regexReplaceAll "^~" $glSelector .chezmoi.homeDir -}}
+{{- if stat $glSelectorAbs }}
   IdentitiesOnly yes
-{{- if (index $ssh "gitlab_identity_file") }}
-  IdentityFile {{ index $ssh "gitlab_identity_file" }}
+  IdentityFile {{ $glSelector }}
+{{- else }}
+  # Selector file {{ $glSelector }} is missing; rely on the 1Password SSH agent defaults.
+{{- end }}
 {{- end }}
 {{ end -}}
 {{ end -}}

@@ -147,6 +147,10 @@ primary_machine = false
 # homebrew_dev = true
 # homebrew_apps = true
 # homebrew_extras = false
+
+# Optional machine-local 1Password vault pinning:
+# [identity]
+# op_vault = "Personal"
 EOF
   ok "Created $OVERRIDES_FILE"
 }

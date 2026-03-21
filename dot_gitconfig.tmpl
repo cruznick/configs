@@ -3,6 +3,23 @@
 {{- $git := $cfg.git | default dict -}}
 {{- $provider := $cfg.active_provider | default "gh" -}}
 {{- $personalSigningKey := printf "~/.ssh/signing-pubs/personal-%s.pub" $provider -}}
+{{- $personalSigningKeyAbs := joinPath .chezmoi.homeDir ".ssh" "signing-pubs" (printf "personal-%s.pub" $provider) -}}
+{{- $signingEnabled := true -}}
+{{- if hasKey $git "signing_enabled" -}}
+  {{- $signingEnabled = (index $git "signing_enabled") -}}
+{{- end -}}
+{{- $commitSigningEnabled := true -}}
+{{- if hasKey $git "commit_gpgsign" -}}
+  {{- $commitSigningEnabled = (index $git "commit_gpgsign") -}}
+{{- end -}}
+{{- $tagSigningEnabled := true -}}
+{{- if hasKey $git "tag_gpgsign" -}}
+  {{- $tagSigningEnabled = (index $git "tag_gpgsign") -}}
+{{- end -}}
+{{- $personalSigningReady := false -}}
+{{- if and $signingEnabled (stat $personalSigningKeyAbs) -}}
+  {{- $personalSigningReady = true -}}
+{{- end -}}
 {{- $personalRewriteHost := ternary "gitlab.com-personal" "github.com-personal" (eq $provider "gl") -}}
 [pull]
   rebase = true
@@ -31,10 +48,10 @@
 {{- end }}
 
 [commit]
-  gpgsign = {{ (index $git "commit_gpgsign") | default true }}
+  gpgsign = {{ and $commitSigningEnabled $personalSigningReady }}
 
 [tag]
-  gpgSign = {{ (index $git "tag_gpgsign") | default true }}
+  gpgSign = {{ and $tagSigningEnabled $personalSigningReady }}
 
 [alias]
   permission-reset = !git diff -p -R --no-ext-diff --no-color | grep -E "^(diff|(old|new) mode)" --color=never | git apply
@@ -54,8 +71,10 @@
 [user]
   name  = {{ ((index $identity "git_name") | default "Unknown User") | quote }}
   email = {{ ((index $identity "git_email") | default "") | quote }}
-{{- if ((index $git "signing_enabled") | default true) }}
+{{- if $personalSigningReady }}
   signingkey = {{ $personalSigningKey | quote }}
+{{- else if $signingEnabled }}
+  # signingkey intentionally omitted until {{ $personalSigningKey }} exists and matches a 1Password SSH key item.
 {{- end }}
 
 {{- if eq $provider "gl" }}

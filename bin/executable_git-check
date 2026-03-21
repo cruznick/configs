@@ -11,9 +11,27 @@ echo "── Identity ───────────────────�
 git config --show-origin user.name
 git config --show-origin user.email
 git config --show-origin user.signingkey 2>/dev/null || echo "(not set)"
+signing_key="$(git config --get user.signingkey 2>/dev/null || true)"
+if [[ -n "$signing_key" ]]; then
+  signing_path="${signing_key/#\~/$HOME}"
+  [[ -f "$signing_path" ]] && echo "signingkey file:  present ($signing_path)" || echo "signingkey file:  missing ($signing_path)"
+fi
 
 echo ""
 echo "── Signing ──────────────────────────────────────────────"
 git config --show-origin gpg.format         2>/dev/null || echo "gpg.format:      (not set)"
 git config --show-origin gpg.ssh.program    2>/dev/null || echo "gpg.ssh.program: (not set)"
 git config --show-origin commit.gpgsign     2>/dev/null || echo "commit.gpgsign:  (not set)"
+
+echo ""
+echo "── SSH Agent ────────────────────────────────────────────"
+echo "SSH_AUTH_SOCK: ${SSH_AUTH_SOCK:-"(not set)"}"
+if [[ -n "${SSH_AUTH_SOCK:-}" && -S "${SSH_AUTH_SOCK:-}" ]]; then
+  echo "agent socket:    present"
+else
+  echo "agent socket:    missing"
+fi
+
+echo ""
+echo "── SSH Config ───────────────────────────────────────────"
+ssh -G github.com-personal 2>/dev/null | awk '/^hostname / || /^user / || /^identityagent / || /^identitiesonly / || /^identityfile /'

@@ -10,6 +10,7 @@ default = "gh"
 [git]
 name = "Your Name"
 email = "you@example-client.com"
+# Public-key selector used by git SSH signing via op-ssh-sign.
 signing_key = "~/.ssh/signing-pubs/example-client-gh-signing.pub"
 signing_item = "ssh-sign-example-client-gh"
 commit_gpgsign = true
@@ -22,6 +23,7 @@ directories = [
 [ssh]
 github_alias = "github.com-example-client"
 gitlab_alias = "gitlab.com-example-client"
+# Public-key selectors used by SSH to choose the right 1Password key via the agent.
 github_identity_file = "~/.ssh/signing-pubs/example-client-gh.pub"
 gitlab_identity_file = "~/.ssh/signing-pubs/example-client-gl.pub"
 github_agent_item = ""

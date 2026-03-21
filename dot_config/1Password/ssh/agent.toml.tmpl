@@ -3,17 +3,22 @@
 # 1Password SSH agent — managed by chezmoi
 # Edit source: dot_config/1Password/ssh/agent.toml.tmpl
 
-{{- if not $vault }}
-# 1Password vault not configured. Personal and work SSH keys are skipped.
-{{- else }}
+# Personal and work SSH key filters.
+# If op_vault is unset, item titles are matched in the built-in Personal/Private/Employee vaults.
+# Set identity.op_vault when your keys live in a shared/custom vault or item titles are ambiguous.
+
 # Personal keys
 [[ssh-keys]]
-vault = "{{ $vault }}"
 item  = "ssh-sign-personal-gl"
+{{- if $vault }}
+vault = "{{ $vault }}"
+{{- end }}
 
 [[ssh-keys]]
-vault = "{{ $vault }}"
 item  = "ssh-sign-personal-gh"
+{{- if $vault }}
+vault = "{{ $vault }}"
+{{- end }}
 
 # Local work keys — one entry per local work context
 {{- range $slug := ($cfg.selected_work_contexts | default list) }}
@@ -23,20 +28,25 @@ item  = "ssh-sign-personal-gh"
 {{- if (index $git "signing_item") }}
 
 [[ssh-keys]]
-vault = "{{ $vault }}"
 item  = "{{ index $git "signing_item" }}"
+{{- if $vault }}
+vault = "{{ $vault }}"
+{{- end }}
 {{- end }}
 {{- if (index $ssh "github_agent_item") }}
 
 [[ssh-keys]]
-vault = "{{ $vault }}"
 item  = "{{ index $ssh "github_agent_item" }}"
+{{- if $vault }}
+vault = "{{ $vault }}"
+{{- end }}
 {{- end }}
 {{- if (index $ssh "gitlab_agent_item") }}
 
 [[ssh-keys]]
-vault = "{{ $vault }}"
 item  = "{{ index $ssh "gitlab_agent_item" }}"
+{{- if $vault }}
+vault = "{{ $vault }}"
 {{- end }}
 {{- end }}
 {{- end }}

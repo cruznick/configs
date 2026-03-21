@@ -49,12 +49,18 @@ profile = "personal"
 provider = "gh"
 work_contexts = []
 primary_machine = false
+
+[identity]
+# Optional for built-in Personal/Private/Employee vaults with unique item titles.
+# Recommended for shared/custom vaults or ambiguous SSH item names.
+op_vault = ""
 ```
 
 Notes:
 - local work contexts are discovered from `~/.config/dotfiles/work-contexts/*.toml`
 - `work_contexts = [...]` is an optional local filter
 - work contexts affect only Git and direnv-related behavior
+- `[identity].op_vault` is machine-local and may be needed for repo-managed 1Password SSH key export/pinning
 
 ## Manual App Exports
 
@@ -179,7 +185,7 @@ Secrets remain local-only:
 - direnv `.envrc`
 - tokens and credentials
 
-Public keys may be exported to `~/.ssh/signing-pubs/`, but export is optional and non-fatal.
+Public keys may be exported to `~/.ssh/signing-pubs/` as SSH/signing selector files, but export is optional and non-fatal.
 
 See [docs/SSH-KEYS.md](docs/SSH-KEYS.md).
 

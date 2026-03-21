@@ -42,7 +42,7 @@ cat >"$BREWFILE" <<'EOF'
 EOF
 
 log "Installing declared Brewfile groups"
-brew bundle install --no-lock --file="$BREWFILE" || warn "brew bundle install reported failures; continuing"
+brew bundle install  --file="$BREWFILE" || warn "brew bundle install reported failures; continuing"
 
 # ── fzf shell integration (no rc changes — chezmoi manages zshrc) ─────────────
 if [[ -x "$(brew --prefix)/opt/fzf/install" ]]; then

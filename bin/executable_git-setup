@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # Creates 4 SSH keys INSIDE 1Password and exports their public keys
-# to ~/.ssh/signing-pubs for Git's user.signingkey per-scope config.
+# to ~/.ssh/signing-pubs as selector files for SSH auth and Git signing.
 
 log(){ printf "\n==> %s\n" "$*"; }
 
-: "${OP_VAULT:=your-vault-name}"   # set to your 1Password vault name or pass: OP_VAULT=MyVault ./git-setup
+: "${OP_VAULT:=}"   # optional; set when keys live in a shared/custom vault
 PUB_DIR="${HOME}/.ssh/signing-pubs"
 mkdir -p "$PUB_DIR"
 chmod 700 "${HOME}/.ssh" 2>/dev/null || true
@@ -23,20 +23,29 @@ op whoami >/dev/null 2>&1 || { log "Please sign in: op signin"; exit 1; }
 create_key () {
   local title="$1"
   local out_pub="$2"
+  local get_cmd=(op item get "$title" --fields "public key")
+  local create_cmd=(op item create --category ssh --title "$title")
+
+  if [[ -n "$OP_VAULT" ]]; then
+    get_cmd=(op item get "$title" --vault "$OP_VAULT" --fields "public key")
+    create_cmd=(op item create --category ssh --title "$title" --vault "$OP_VAULT")
+  fi
 
   # If item exists, skip creation
-  if op item get "$title" --vault "$OP_VAULT" >/dev/null 2>&1; then
+  if "${get_cmd[@]}" >/dev/null 2>&1; then
     echo "1Password item exists: $title"
   else
-    log "Creating SSH key in 1Password: $title (vault: $OP_VAULT)"
-    op item create --category ssh --title "$title" --vault "$OP_VAULT" >/dev/null
+    if [[ -n "$OP_VAULT" ]]; then
+      log "Creating SSH key in 1Password: $title (vault: $OP_VAULT)"
+    else
+      log "Creating SSH key in 1Password: $title (built-in default vault)"
+    fi
+    "${create_cmd[@]}" >/dev/null
   fi
 
   # Export public key from the item
   log "Exporting public key -> $out_pub"
-  # Field name can vary by item; this approach is commonly used:
-  # `op item get <item> --fields 'public key'`
-  op item get "$title" --vault "$OP_VAULT" --fields "public key" > "$out_pub"
+  "${get_cmd[@]}" > "$out_pub"
   chmod 644 "$out_pub"
 }
 
@@ -46,4 +55,4 @@ create_key "ssh-sign-personal-gl" "${PUB_DIR}/personal-gl.pub"
 create_key "ssh-sign-personal-gh" "${PUB_DIR}/personal-gh.pub"
 
 log "Done. Public keys saved in: ${PUB_DIR}"
-echo "Next: add each public key to the matching GitHub/GitLab account as a SIGNING key."
+echo "Next: add each public key to the matching GitHub/GitLab account as an auth/signing key as appropriate."

@@ -33,13 +33,31 @@ generated_count=0
 {{ $git := (index $ctx "git") | default dict }}
 {{ $ssh := (index $ctx "ssh") | default dict }}
 {{ $providers := index ((index $ctx "providers") | default dict) "enabled" | default list }}
+{{ $signingKey := (index $git "signing_key") | default "" }}
+{{ $signingEnabled := true }}
+{{ if hasKey $git "commit_gpgsign" }}
+{{ $signingEnabled = (index $git "commit_gpgsign") }}
+{{ end }}
+{{ $signingKeyAbs := regexReplaceAll "^~" $signingKey (env "HOME") }}
+{{ $signingReady := false }}
+{{ if and $signingKey $signingEnabled (stat $signingKeyAbs) }}
+{{ $signingReady = true }}
+{{ end }}
 cat > "$generated_dir/work-{{ $slug }}.gitconfig" <<'EOF'
 [user]
   name  = {{ ((index $git "name") | default ((index ($cfg.identity | default dict) "git_name") | default "Unknown User")) | quote }}
   email = {{ ((index $git "email") | default "") | quote }}
-{{- if (index $git "signing_key") }}
-  signingkey = {{ (index $git "signing_key") | quote }}
+{{- if $signingReady }}
+  signingkey = {{ $signingKey | quote }}
+{{- else if $signingKey }}
+  # signingkey intentionally omitted until {{ $signingKey }} exists and matches a 1Password SSH key item.
 {{- end }}
+
+[commit]
+  gpgsign = {{ $signingReady }}
+
+[tag]
+  gpgSign = {{ $signingReady }}
 {{- if has "gh" $providers }}
 {{- if (index $ssh "github_alias") }}
 
