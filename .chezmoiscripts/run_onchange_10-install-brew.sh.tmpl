@@ -42,7 +42,7 @@ cat >"$BREWFILE" <<'EOF'
 EOF
 
 log "Installing declared Brewfile groups"
-brew bundle install  --file="$BREWFILE" || warn "brew bundle install reported failures; continuing"
+brew bundle install --file="$BREWFILE" || warn "brew bundle install reported failures; continuing"
 
 # ── fzf shell integration (no rc changes — chezmoi manages zshrc) ─────────────
 if [[ -x "$(brew --prefix)/opt/fzf/install" ]]; then
@@ -54,5 +54,6 @@ echo "✅ run_onchange_10: brew packages installed"
 echo ""
 echo "⚡ Notes:"
 echo "  - source of truth: homebrew/Brewfile.*"
+echo "  - cleanup is manual only: dots-brew cleanup"
 echo "  - terraform and kubectl are managed by asdf (run_once_20 handles install)"
 echo "  - macfuse remains manual — install from https://osxfuse.github.io"

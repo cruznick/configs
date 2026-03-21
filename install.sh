@@ -147,6 +147,7 @@ primary_machine = false
 # homebrew_dev = true
 # homebrew_apps = true
 # homebrew_extras = false
+# homebrew_work = false
 
 # Optional machine-local 1Password vault pinning:
 # [identity]

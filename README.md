@@ -86,6 +86,7 @@ Source of truth:
 - `homebrew/Brewfile.dev`
 - `homebrew/Brewfile.apps`
 - `homebrew/Brewfile.extras`
+- `homebrew/Brewfile.work`
 
 The active machine Brewfile is rendered from those repo-tracked group files using
 the current effective config. The install hook and audit helper both consume that
@@ -96,6 +97,7 @@ Default group enablement:
 - `homebrew_dev = true`
 - `homebrew_apps = true`
 - `homebrew_extras = false`
+- `homebrew_work = false`
 
 Machine-local group selection uses the existing override file:
 
@@ -106,12 +108,14 @@ homebrew_core = true
 homebrew_dev = true
 homebrew_apps = true
 homebrew_extras = false
+homebrew_work = false
 ```
 
 Workflows:
 - Update declared brew state: `dots-brew update`
 - Install/sync declared brew state: `dots-brew sync`
 - Preview sync work: `dots-brew plan`
+- Cleanup undeclared packages explicitly: `dots-brew cleanup`
 - Show active groups and drift summary: `dots-brew status`
 - Audit drift: `dots-brew audit` or `dots-brew audit --missing`
 - Show active groups: `dots-brew groups`
@@ -120,6 +124,9 @@ Workflows:
 
 Operational rule:
 - direct `brew install` is fine for testing, but persistent state must be added to `homebrew/Brewfile.*`
+- `chezmoi apply` and `dots-brew sync` do not uninstall undeclared packages
+- destructive removal of undeclared packages is manual-only via `dots-brew cleanup`
+- `chezmoi` is intentionally left unmanaged by Brewfiles because bootstrap installs it separately
 
 See [docs/HOMEBREW.md](docs/HOMEBREW.md).
 
@@ -149,6 +156,7 @@ dots-debug --json
 dots-profile
 dots-brew update
 dots-brew plan
+dots-brew cleanup
 dots-brew status
 dots-brew audit --missing
 ```

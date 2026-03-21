@@ -41,11 +41,13 @@ Source files:
 - `homebrew/Brewfile.dev`
 - `homebrew/Brewfile.apps`
 - `homebrew/Brewfile.extras`
+- `homebrew/Brewfile.work`
 
 Activation:
 - the active Brewfile is rendered from those files via `.chezmoitemplates/homebrew-active-brewfile.tmpl`
 - machine-local enablement is controlled by `optional_integrations.homebrew_*`
 - work-context data is not used for Homebrew selection
+- normal apply/sync installs declared packages only; destructive cleanup is explicit via `dots-brew cleanup`
 
 ## Debugging
 

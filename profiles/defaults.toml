@@ -29,6 +29,7 @@ homebrew_core = true
 homebrew_dev = true
 homebrew_apps = true
 homebrew_extras = false
+homebrew_work = false
 zinit = true
 asdf = true
 ssh_key_export = true

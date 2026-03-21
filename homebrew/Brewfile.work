@@ -1,0 +1,14 @@
+tap "datadog-labs/pack"
+
+brew "datadog-labs/pack/pup"
+
+cask "openlens"
+cask "okta-verify"
+cask "pritunl"
+cask "meetingbar"
+cask "claude"
+cask "claude-code"
+cask "slack"
+cask "zoom"
+cask "cursor"
+cask "cursor-cli"

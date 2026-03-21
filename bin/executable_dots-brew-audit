@@ -46,6 +46,28 @@ command -v brew >/dev/null 2>&1 || {
   exit 1
 }
 
+resolve_chezmoi_command() {
+  if command -v chezmoi >/dev/null 2>&1; then
+    command -v chezmoi
+    return 0
+  fi
+  if [[ -x /opt/homebrew/bin/chezmoi ]]; then
+    printf '%s\n' "/opt/homebrew/bin/chezmoi"
+    return 0
+  fi
+  if [[ -x /usr/local/bin/chezmoi ]]; then
+    printf '%s\n' "/usr/local/bin/chezmoi"
+    return 0
+  fi
+  return 1
+}
+
+CHEZMOI_BIN="$(resolve_chezmoi_command || true)"
+if [[ -z "$CHEZMOI_BIN" ]]; then
+  echo "error: chezmoi not found" >&2
+  exit 1
+fi
+
 source_dir() {
   local script_dir repo_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -54,7 +76,7 @@ source_dir() {
     printf '%s\n' "$repo_dir"
     return 0
   fi
-  chezmoi source-path
+  "$CHEZMOI_BIN" source-path
 }
 
 BREWFILE="$(mktemp "${TMPDIR:-/tmp}/dotfiles-brew.XXXXXX")"
@@ -63,7 +85,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! chezmoi -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/homebrew-active-brewfile.tmpl" . }}' >"$BREWFILE"; then
+if ! "$CHEZMOI_BIN" -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/homebrew-active-brewfile.tmpl" . }}' >"$BREWFILE"; then
   echo "error: failed to render active Brewfile" >&2
   exit 1
 fi

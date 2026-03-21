@@ -18,9 +18,8 @@ brew "docker-compose"
 brew "buildkit"
 brew "docker-completion"
 brew "hashicorp/tap/vault"
+brew "rsync"
 
-cask "cursor"
-cask "cursor-cli"
 cask "ghostty"
 cask "session-manager-plugin"
-cask "visual-studio-code"
+

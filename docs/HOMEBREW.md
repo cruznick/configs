@@ -8,6 +8,7 @@ Homebrew state is declared in repo-tracked Brewfiles:
 - `homebrew/Brewfile.dev`
 - `homebrew/Brewfile.apps`
 - `homebrew/Brewfile.extras`
+- `homebrew/Brewfile.work` 
 
 These files are the only persistent source of truth for Homebrew packages.
 The machine-specific active Brewfile is rendered from them by:
@@ -27,6 +28,7 @@ homebrew_core = true
 homebrew_dev = true
 homebrew_apps = true
 homebrew_extras = false
+homebrew_work = false
 ```
 
 Default behavior from the repo:
@@ -35,6 +37,7 @@ Default behavior from the repo:
 - `homebrew_dev = true`
 - `homebrew_apps = true`
 - `homebrew_extras = false`
+- `homebrew_work = false`
 
 This stays machine-local, debuggable, and separate from private work-context data.
 
@@ -52,11 +55,28 @@ Install or re-sync the declared state without a general upgrade:
 dots-brew sync
 ```
 
+Normal sync behavior:
+
+- runs `brew bundle install` for the active Brewfile
+- does not uninstall undeclared packages
+- is what `chezmoi apply` uses in the brew onchange hook
+
 Preview what `dots-brew sync` would do:
 
 ```bash
 dots-brew plan
 ```
+
+This previews install or upgrade work only. It does not perform cleanup.
+
+Explicitly remove undeclared packages:
+
+```bash
+dots-brew cleanup
+```
+
+This is destructive and manual-only. It is not part of bootstrap, `chezmoi apply`,
+or `dots-brew sync`.
 
 Show active groups and a drift summary:
 
@@ -81,6 +101,8 @@ dots-brew audit
 dots-brew audit --missing
 ```
 
+This reports drift only. It does not uninstall anything.
+
 Show which groups are currently enabled:
 
 ```bash
@@ -101,5 +123,6 @@ installs the active Homebrew Brewfile groups on macOS.
 - Direct `brew install` is acceptable for short-lived testing.
 - Persistent Homebrew state must be recorded in `homebrew/Brewfile.*`.
 - Brew setup remains non-fatal during bootstrap and apply.
+- `chezmoi` is intentionally unmanaged by Brewfiles because bootstrap installs it separately.
 - `terraform` and `kubectl` remain managed outside Homebrew to avoid shim conflicts.
 - `macfuse` remains a manual install.

@@ -16,6 +16,10 @@
 {{- if hasKey $optional "homebrew_extras" -}}
   {{- $extrasEnabled = (index $optional "homebrew_extras") -}}
 {{- end -}}
+{{- $workEnabled := false -}}
+{{- if hasKey $optional "homebrew_work" -}}
+  {{- $workEnabled = (index $optional "homebrew_work") -}}
+{{- end -}}
 # Generated from repo-tracked Homebrew group files.
 # Source of truth lives under homebrew/.
 {{- if $coreEnabled }}
@@ -37,4 +41,9 @@
 
 # group: extras
 {{ include "homebrew/Brewfile.extras" }}
+{{ end -}}
+{{- if $workEnabled }}
+
+# group: work
+{{ include "homebrew/Brewfile.work" }}
 {{ end -}}

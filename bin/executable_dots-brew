@@ -9,6 +9,7 @@ Usage:
   dots-brew sync
   dots-brew update
   dots-brew plan
+  dots-brew cleanup [--force]
   dots-brew status
   dots-brew audit [--missing]
   dots-brew groups
@@ -18,6 +19,7 @@ Commands:
   sync     install the active Brewfile with brew bundle
   update   brew update && brew upgrade && sync declared Brewfiles
   plan     dry-run the install/upgrade work sync would perform
+  cleanup  explicitly uninstall undeclared Homebrew packages from the active Brewfile
   status   show active groups and current drift summary
   audit    compare installed packages against the active Brewfile
   groups   show repo-tracked Brewfile groups and local enablement
@@ -31,6 +33,28 @@ require_brew() {
   }
 }
 
+resolve_chezmoi_command() {
+  if command -v chezmoi >/dev/null 2>&1; then
+    command -v chezmoi
+    return 0
+  fi
+  if [[ -x /opt/homebrew/bin/chezmoi ]]; then
+    printf '%s\n' "/opt/homebrew/bin/chezmoi"
+    return 0
+  fi
+  if [[ -x /usr/local/bin/chezmoi ]]; then
+    printf '%s\n' "/usr/local/bin/chezmoi"
+    return 0
+  fi
+  return 1
+}
+
+CHEZMOI_BIN="$(resolve_chezmoi_command || true)"
+if [[ -z "$CHEZMOI_BIN" ]]; then
+  echo "chezmoi not found" >&2
+  exit 1
+fi
+
 source_dir() {
   local script_dir repo_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,7 +63,7 @@ source_dir() {
     printf '%s\n' "$repo_dir"
     return 0
   fi
-  chezmoi source-path
+  "$CHEZMOI_BIN" source-path
 }
 
 audit_command() {
@@ -54,7 +78,7 @@ audit_command() {
 }
 
 render_brewfile() {
-  chezmoi -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/homebrew-active-brewfile.tmpl" . }}'
+  "$CHEZMOI_BIN" -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/homebrew-active-brewfile.tmpl" . }}'
 }
 
 with_brewfile() {
@@ -73,7 +97,9 @@ plan_with_brewfile() {
   "$0" groups
   echo ""
   echo "Planned sync command:"
-  echo "  brew bundle install --no-lock --file=$file"
+  echo "  brew bundle install --file=$file"
+  echo "Cleanup is not part of sync."
+  echo "Use: dots-brew cleanup"
   echo ""
   if brew bundle check --verbose --file "$file"; then
     echo "No installs or upgrades are needed."
@@ -107,6 +133,40 @@ status_report() {
   echo "Details:"
   echo "  audit: dots-brew audit"
   echo "  install drift only: dots-brew audit --missing"
+  echo "  destructive cleanup: dots-brew cleanup"
+}
+
+cleanup_with_brewfile() {
+  local file="$1"
+  local force="${2:-false}"
+  local reply=""
+
+  echo "dots-brew cleanup"
+  echo ""
+  echo "This will uninstall Homebrew formulae and casks not declared in the active Brewfile."
+  echo "It is intentionally not run by chezmoi apply, bootstrap, or dots-brew sync."
+  echo ""
+  echo "Preview:"
+  if brew bundle cleanup --file "$file"; then
+    echo "No undeclared packages would be removed."
+    return 0
+  fi
+
+  if [[ "$force" != "true" ]]; then
+    echo ""
+    printf "Proceed with uninstall? [y/N]: "
+    read -r reply
+    case "$reply" in
+      y|Y|yes|YES)
+        ;;
+      *)
+        echo "Cancelled."
+        return 0
+        ;;
+    esac
+  fi
+
+  brew bundle cleanup --force --file "$file"
 }
 
 cmd="${1:-}"
@@ -116,17 +176,33 @@ case "$cmd" in
     ;;
   sync)
     require_brew
-    with_brewfile brew bundle install --no-lock --file
+    with_brewfile brew bundle install --file
     ;;
   update)
     require_brew
     brew update
     brew upgrade
-    with_brewfile brew bundle install --no-lock --file
+    with_brewfile brew bundle install --file
     ;;
   plan)
     require_brew
     with_brewfile plan_with_brewfile
+    ;;
+  cleanup)
+    require_brew
+    shift || true
+    case "${1:-}" in
+      "")
+        with_brewfile cleanup_with_brewfile
+        ;;
+      --force)
+        with_brewfile cleanup_with_brewfile true
+        ;;
+      *)
+        usage >&2
+        exit 1
+        ;;
+    esac
     ;;
   status)
     status_report
@@ -136,14 +212,15 @@ case "$cmd" in
     exec "$(audit_command)" "$@"
     ;;
   groups)
-    chezmoi -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}' \
+    "$CHEZMOI_BIN" -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}' \
       | jq -r '
           .optional_integrations as $o
           | [
               ["core", (if $o | has("homebrew_core") then $o.homebrew_core else true end)],
               ["dev", (if $o | has("homebrew_dev") then $o.homebrew_dev else true end)],
               ["apps", (if $o | has("homebrew_apps") then $o.homebrew_apps else true end)],
-              ["extras", (if $o | has("homebrew_extras") then $o.homebrew_extras else false end)]
+              ["extras", (if $o | has("homebrew_extras") then $o.homebrew_extras else false end)],
+              ["work", (if $o | has("homebrew_work") then $o.homebrew_work else false end)]
             ][]
           | "\(.[0])\t\((.[1]) | if . then "enabled" else "disabled" end)\thomebrew/Brewfile.\(.[0])"
         '
