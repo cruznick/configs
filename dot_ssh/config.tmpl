@@ -53,7 +53,7 @@ Host {{ (index $ssh "github_alias") | default (printf "github.com-%s" $slug) }}
   User git
 {{- $ghSelector := ((index $ssh "github_identity_file") | default "") -}}
 {{- if $ghSelector }}
-{{- $ghSelectorAbs := regexReplaceAll "^~" $ghSelector .chezmoi.homeDir -}}
+{{- $ghSelectorAbs := regexReplaceAll "^~" $ghSelector $.chezmoi.homeDir -}}
 {{- if stat $ghSelectorAbs }}
   IdentitiesOnly yes
   IdentityFile {{ $ghSelector }}
@@ -68,7 +68,7 @@ Host {{ (index $ssh "gitlab_alias") | default (printf "gitlab.com-%s" $slug) }}
   User git
 {{- $glSelector := ((index $ssh "gitlab_identity_file") | default "") -}}
 {{- if $glSelector }}
-{{- $glSelectorAbs := regexReplaceAll "^~" $glSelector .chezmoi.homeDir -}}
+{{- $glSelectorAbs := regexReplaceAll "^~" $glSelector $.chezmoi.homeDir -}}
 {{- if stat $glSelectorAbs }}
   IdentitiesOnly yes
   IdentityFile {{ $glSelector }}
