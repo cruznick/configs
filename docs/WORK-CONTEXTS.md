@@ -18,13 +18,15 @@ Then it runs `chezmoi apply`.
 ## Local work-context schema
 
 See:
-- [profiles/work-context.example.toml](/Users/bjm/repos/personal/gh/configs/profiles/work-context.example.toml)
+- [profiles/work-context.example.toml](../profiles/work-context.example.toml)
 
 Important rules:
 - `name` is optional
 - work contexts affect only Git and direnv-related behavior
 - concrete company/client details remain local-only
 - `.envrc.example` may be generated, but real secret-bearing `.envrc` is still manual
+- work-context files must be valid TOML; use `key = ["value"]` arrays, not shell arrays
+- machine/session bootstrap belongs in local startup files such as `~/.zshenv`, not in managed `.zshrc`
 
 ## Removal
 

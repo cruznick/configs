@@ -169,6 +169,10 @@ cleanup_with_brewfile() {
   brew bundle cleanup --force --file "$file"
 }
 
+cleanup_force_with_brewfile() {
+  cleanup_with_brewfile "$1" true
+}
+
 cmd="${1:-}"
 case "$cmd" in
   render)
@@ -196,7 +200,7 @@ case "$cmd" in
         with_brewfile cleanup_with_brewfile
         ;;
       --force)
-        with_brewfile cleanup_with_brewfile true
+        with_brewfile cleanup_force_with_brewfile
         ;;
       *)
         usage >&2
@@ -212,7 +216,7 @@ case "$cmd" in
     exec "$(audit_command)" "$@"
     ;;
   groups)
-    "$CHEZMOI_BIN" -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}' \
+    "$CHEZMOI_BIN" -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/homebrew-config.json.tmpl" . }}' \
       | jq -r '
           .optional_integrations as $o
           | [

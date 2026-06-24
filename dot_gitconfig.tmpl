@@ -92,7 +92,7 @@
 {{- $match := (index $ctx "match") | default dict }}
 {{- range $dir := ((index $match "directories") | default list) }}
 {{- $expandedDir := regexReplaceAll "^~" $dir (env "HOME") | trimSuffix "/" }}
-[includeIf "gitdir:{{ $expandedDir }}/.git"]
+[includeIf "gitdir:{{ $expandedDir }}/"]
   path = {{ printf "~/.config/dotfiles/generated/git/work-%s.gitconfig" $slug | quote }}
 
 {{- end }}

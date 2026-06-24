@@ -2,7 +2,7 @@
 set -euo pipefail
 
 WORK_CONTEXT_DIR="${HOME}/.config/dotfiles/work-contexts"
-SOURCE_DIR="{{ .chezmoi.sourceDir }}"
+SOURCE_DIR="$(chezmoi source-path)"
 EXAMPLE_ENVRC_SRC="${SOURCE_DIR}/companies/example/.envrc.example"
 
 usage() {

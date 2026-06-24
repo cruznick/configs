@@ -2,7 +2,7 @@
 # run_onchange_10-install-brew.sh — Install Homebrew packages from grouped Brewfiles
 # Re-runs automatically whenever this file or any tracked Brewfile group changes.
 set -euo pipefail
-{{ $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson }}
+{{ $cfg := includeTemplate ".chezmoitemplates/homebrew-config.json.tmpl" . | fromJson }}
 {{ $optional := $cfg.optional_integrations | default dict }}
 {{ $homebrewCoreEnabled := true }}
 {{ if hasKey $optional "homebrew_core" }}
@@ -55,5 +55,4 @@ echo ""
 echo "⚡ Notes:"
 echo "  - source of truth: homebrew/Brewfile.*"
 echo "  - cleanup is manual only: dots-brew cleanup"
-echo "  - terraform and kubectl are managed by asdf (run_once_20 handles install)"
-echo "  - macfuse remains manual — install from https://osxfuse.github.io"
+echo "  - terraform, kubectl, and helm are managed by asdf (run_once_20 handles install)"

@@ -1,0 +1,65 @@
+{{- $defaults := include "profiles/defaults.toml" | fromToml -}}
+{{- $overrideFile := joinPath (env "HOME") ".config" "dotfiles" "overrides.toml" -}}
+{{- $overrides := dict -}}
+{{- $hasOverrideFile := false -}}
+{{- if stat $overrideFile -}}
+  {{- $hasOverrideFile = true -}}
+  {{- $overrides = include $overrideFile | fromToml -}}
+{{- end -}}
+
+{{- $envOverrides := dict -}}
+{{- $envProfile := env "DOTFILES_PROFILE" -}}
+{{- if $envProfile -}}
+  {{- $_ := set $envOverrides "DOTFILES_PROFILE" $envProfile -}}
+{{- end -}}
+{{- $envProvider := env "DOTFILES_PROVIDER" -}}
+{{- if $envProvider -}}
+  {{- $_ := set $envOverrides "DOTFILES_PROVIDER" $envProvider -}}
+{{- end -}}
+
+{{- $defaultProfile := (index $defaults "default_profile") | default "personal" -}}
+{{- $activeProfile := $defaultProfile -}}
+{{- if (index $overrides "profile") -}}
+  {{- $activeProfile = index $overrides "profile" -}}
+{{- end -}}
+{{- if $envProfile -}}
+  {{- $activeProfile = $envProfile -}}
+{{- end -}}
+{{- if not (has $activeProfile (list "personal" "work")) -}}
+  {{- $activeProfile = $defaultProfile -}}
+{{- end -}}
+
+{{- $profilePath := joinPath "profiles" (printf "%s.toml" $activeProfile) -}}
+{{- $profileData := dict -}}
+{{- if stat $profilePath -}}
+  {{- $profileData = include $profilePath | fromToml -}}
+{{- end -}}
+{{- $cfg := mergeOverwrite (deepCopy $defaults) $profileData $overrides -}}
+
+{{- $activeProvider := (((index (index $cfg "providers" | default dict) "default") | default "") | toString) -}}
+{{- if eq $activeProvider "" -}}
+  {{- $activeProvider = (((index (index (index $cfg "profiles" | default dict) $activeProfile | default dict) "default_provider") | default "gh") | toString) -}}
+{{- end -}}
+{{- if (index $overrides "provider") -}}
+  {{- $activeProvider = index $overrides "provider" -}}
+{{- end -}}
+{{- if $envProvider -}}
+  {{- $activeProvider = $envProvider -}}
+{{- end -}}
+{{- if not (has $activeProvider (list "gh" "gl")) -}}
+  {{- $activeProvider = "gh" -}}
+{{- end -}}
+
+{{- $result := dict
+  "schema_version" ((index $defaults "schema_version") | default 1)
+  "active_profile" $activeProfile
+  "active_provider" $activeProvider
+  "override_file" (ternary $overrideFile "" $hasOverrideFile)
+  "env_overrides" $envOverrides
+  "optional_integrations" ((index $cfg "optional_integrations") | default dict)
+  "merge_order" (list
+    "profiles/defaults.toml"
+    (printf "profiles/%s.toml" $activeProfile)
+    "~/.config/dotfiles/overrides.toml"
+    "environment variables") -}}
+{{- $result | toPrettyJson -}}

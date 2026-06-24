@@ -196,6 +196,7 @@ for _asdf_init in \
 done
 unset _asdf_init
 export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
+path_prepend "$ASDF_DATA_DIR/shims"
 
 # =============================================================================
 # NODE / PNPM

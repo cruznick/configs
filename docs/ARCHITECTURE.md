@@ -49,6 +49,15 @@ Activation:
 - work-context data is not used for Homebrew selection
 - normal apply/sync installs declared packages only; destructive cleanup is explicit via `dots-brew cleanup`
 
+## Local Session Model
+
+The managed `~/.zshrc` is for shared shell behavior only. Machine-local session
+bootstraps and tool-generated blocks live outside this repo, commonly in
+`~/.zshenv`. Secret-bearing and temporary work variables live in direnv-managed
+`.envrc` files under work directories.
+
+See [LOCAL-SESSION.md](LOCAL-SESSION.md).
+
 ## Debugging
 
 Use:

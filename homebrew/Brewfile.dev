@@ -2,7 +2,6 @@ tap "hashicorp/tap"
 
 brew "awscli"
 brew "kubectx"
-brew "helm"
 brew "k9s"
 brew "stern"
 brew "pulumi"
@@ -22,4 +21,3 @@ brew "rsync"
 
 cask "ghostty"
 cask "session-manager-plugin"
-

@@ -1,4 +1,4 @@
-{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
+{{- $cfg := includeTemplate ".chezmoitemplates/homebrew-config.json.tmpl" . | fromJson -}}
 {{- $optional := (index $cfg "optional_integrations") | default dict -}}
 {{- $coreEnabled := true -}}
 {{- if hasKey $optional "homebrew_core" -}}

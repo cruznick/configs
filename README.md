@@ -75,7 +75,7 @@ These are reference exports only.
 - They are not part of bootstrap
 - They must be exported and imported manually
 
-See [apps/README.md](/Users/bjm/repos/personal/gh/configs/apps/README.md).
+See [apps/README.md](apps/README.md).
 
 ## Homebrew
 
@@ -89,8 +89,9 @@ Source of truth:
 - `homebrew/Brewfile.work`
 
 The active machine Brewfile is rendered from those repo-tracked group files using
-the current effective config. The install hook and audit helper both consume that
-rendered Brewfile.
+Homebrew-specific config from profiles and `~/.config/dotfiles/overrides.toml`.
+It does not parse private work-context files, so a broken local work context
+does not block Brewfile rendering.
 
 Default group enablement:
 - `homebrew_core = true`
@@ -127,6 +128,7 @@ Operational rule:
 - `chezmoi apply` and `dots-brew sync` do not uninstall undeclared packages
 - destructive removal of undeclared packages is manual-only via `dots-brew cleanup`
 - `chezmoi` is intentionally left unmanaged by Brewfiles because bootstrap installs it separately
+- Version-pinned runtimes and CLIs (`nodejs`, `python`, `golang`, `terraform`, `kubectl`, `helm`) are managed by asdf, not Homebrew.
 
 See [docs/HOMEBREW.md](docs/HOMEBREW.md).
 
@@ -184,6 +186,18 @@ dots-work create
 ```
 
 See [docs/WORK-CONTEXTS.md](docs/WORK-CONTEXTS.md).
+
+## Local Session Layers
+
+Machine-local shell bootstraps, tool-managed PATH blocks, and secret-bearing
+work session variables stay outside the managed `.zshrc`.
+
+Use:
+- `dot_zshrc.tmpl` for shared shell behavior
+- local startup files such as `~/.zshenv` for machine-local session bootstrap
+- work-directory `.envrc` files for secrets, cloud profiles, and temporary tokens
+
+See [docs/LOCAL-SESSION.md](docs/LOCAL-SESSION.md).
 
 ## Secrets
 

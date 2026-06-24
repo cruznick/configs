@@ -110,22 +110,27 @@ declare -A EXCLUDED_REASON
 EXCLUDED_REASON["chezmoi"]="installed by install.sh, not Brewfile"
 EXCLUDED_REASON["terraform"]="managed by asdf (avoids shim conflicts)"
 EXCLUDED_REASON["kubernetes-cli"]="managed by asdf (avoids shim conflicts)"
+EXCLUDED_REASON["helm"]="managed by asdf (avoids shim conflicts)"
 EXCLUDED_REASON["nvm"]="managed by asdf (use: asdf plugin add nodejs)"
 EXCLUDED_REASON["pyenv"]="managed by asdf (use: asdf plugin add python)"
-EXCLUDED_REASON["macfuse"]="manual install — https://osxfuse.github.io"
 EXCLUDED_REASON["tcl-tk"]="keg-only build dep (Python/pyenv)"
 EXCLUDED_REASON["tcl-tk@8"]="keg-only build dep (Python/pyenv)"
 EXCLUDED_REASON["zlib"]="keg-only build dep"
 
 # ── Get installed packages ────────────────────────────────────────────────────
-INSTALLED_FORMULAE="$(brew list --formula --installed-on-request 2>/dev/null | sort)"
+# Untracked drift should consider only packages intentionally installed by the
+# user; missing drift should consider everything installed, including formulae
+# Homebrew no longer marks as installed-on-request.
+INSTALLED_FORMULAE_ON_REQUEST="$(brew list --formula --installed-on-request 2>/dev/null | sort)"
+INSTALLED_FORMULAE_ALL="$(brew list --formula 2>/dev/null | sort)"
 INSTALLED_CASKS="$(brew list --cask 2>/dev/null | sort)"
-INSTALLED_ALL="$(printf '%s\n%s\n' "$INSTALLED_FORMULAE" "$INSTALLED_CASKS" | sort -u)"
+INSTALLED_REQUESTED_ALL="$(printf '%s\n%s\n' "$INSTALLED_FORMULAE_ON_REQUEST" "$INSTALLED_CASKS" | sort -u)"
+INSTALLED_ALL="$(printf '%s\n%s\n' "$INSTALLED_FORMULAE_ALL" "$INSTALLED_CASKS" | sort -u)"
 
 TRACKED="$(_extract_tracked | sort -u)"
 
 # ── Diff ──────────────────────────────────────────────────────────────────────
-UNTRACKED="$(comm -23 <(echo "$INSTALLED_ALL") <(echo "$TRACKED"))"
+UNTRACKED="$(comm -23 <(echo "$INSTALLED_REQUESTED_ALL") <(echo "$TRACKED"))"
 MISSING="$(comm -13 <(echo "$INSTALLED_ALL") <(echo "$TRACKED"))"
 
 REAL_UNTRACKED=""
@@ -167,7 +172,7 @@ BOLD=$'\033[1m'; YELLOW=$'\033[1;33m'; RED=$'\033[1;31m'; DIM=$'\033[2m'; RESET=
 
 echo ""
 echo "${BOLD}dots-brew-audit${RESET}"
-echo "${DIM}Comparing: brew list --installed-on-request  vs  active rendered Brewfile${RESET}"
+echo "${DIM}Comparing requested installs and installed state against the active rendered Brewfile${RESET}"
 echo ""
 
 if [[ -z "$UNTRACKED" ]]; then

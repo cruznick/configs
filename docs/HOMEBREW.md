@@ -8,14 +8,16 @@ Homebrew state is declared in repo-tracked Brewfiles:
 - `homebrew/Brewfile.dev`
 - `homebrew/Brewfile.apps`
 - `homebrew/Brewfile.extras`
-- `homebrew/Brewfile.work` 
+- `homebrew/Brewfile.work`
 
 These files are the only persistent source of truth for Homebrew packages.
 The machine-specific active Brewfile is rendered from them by:
 
-- [.chezmoitemplates/homebrew-active-brewfile.tmpl](/Users/bjm/repos/personal/gh/configs/.chezmoitemplates/homebrew-active-brewfile.tmpl)
+- [.chezmoitemplates/homebrew-active-brewfile.tmpl](../.chezmoitemplates/homebrew-active-brewfile.tmpl)
 
-The install hook uses that rendered Brewfile during `chezmoi apply`.
+The install hook uses that rendered Brewfile during `chezmoi apply`. Brewfile
+rendering reads only profiles and `~/.config/dotfiles/overrides.toml`; it does
+not parse private work-context files.
 
 ## Machine Selection
 
@@ -124,5 +126,5 @@ installs the active Homebrew Brewfile groups on macOS.
 - Persistent Homebrew state must be recorded in `homebrew/Brewfile.*`.
 - Brew setup remains non-fatal during bootstrap and apply.
 - `chezmoi` is intentionally unmanaged by Brewfiles because bootstrap installs it separately.
-- `terraform` and `kubectl` remain managed outside Homebrew to avoid shim conflicts.
-- `macfuse` remains a manual install.
+- Version-pinned runtimes and CLIs (`nodejs`, `python`, `golang`, `terraform`, `kubectl`, `helm`) remain managed by asdf to avoid shim conflicts.
+- `uv` remains Homebrew-managed; asdf owns the Python runtime while `uv` manages project environments and packages.
