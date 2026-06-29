@@ -15,7 +15,6 @@ brew "colima"
 brew "docker"
 brew "docker-compose"
 brew "buildkit"
-brew "docker-completion"
 brew "hashicorp/tap/vault"
 brew "rsync"
 
