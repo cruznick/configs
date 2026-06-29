@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+# dots-health - non-destructive dotfiles drift and readiness checks.
+set -euo pipefail
+
+RUN_BREW_PLAN=1
+RUN_BREW=1
+
+usage() {
+  cat <<'EOF'
+Usage:
+  dots-health [--fast] [--no-brew]
+
+Options:
+  --fast     skip the slower brew bundle dependency check
+  --no-brew  skip all Homebrew checks
+
+Checks are read-only. This command does not run chezmoi apply, brew bundle
+install, brew upgrade, or cleanup.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --fast)
+      RUN_BREW_PLAN=0
+      ;;
+    --no-brew)
+      RUN_BREW=0
+      ;;
+    -h|--help|help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+failures=0
+warnings=0
+
+section() {
+  printf '\n==> %s\n' "$*"
+}
+
+ok() {
+  printf 'ok: %s\n' "$*"
+}
+
+warn() {
+  warnings=$((warnings + 1))
+  printf 'warn: %s\n' "$*" >&2
+}
+
+fail() {
+  failures=$((failures + 1))
+  printf 'fail: %s\n' "$*" >&2
+}
+
+resolve_chezmoi_command() {
+  if command -v chezmoi >/dev/null 2>&1; then
+    command -v chezmoi
+    return 0
+  fi
+  if [[ -x /opt/homebrew/bin/chezmoi ]]; then
+    printf '%s\n' /opt/homebrew/bin/chezmoi
+    return 0
+  fi
+  if [[ -x /usr/local/bin/chezmoi ]]; then
+    printf '%s\n' /usr/local/bin/chezmoi
+    return 0
+  fi
+  return 1
+}
+
+CHEZMOI_BIN="$(resolve_chezmoi_command || true)"
+if [[ -z "$CHEZMOI_BIN" ]]; then
+  echo "error: chezmoi not found" >&2
+  exit 1
+fi
+
+source_dir() {
+  local script_dir repo_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  repo_dir="$(cd "$script_dir/.." && pwd)"
+  if [[ -f "$repo_dir/.chezmoitemplates/effective-config.json.tmpl" ]]; then
+    printf '%s\n' "$repo_dir"
+    return 0
+  fi
+  "$CHEZMOI_BIN" source-path
+}
+
+SOURCE_DIR="$(source_dir)"
+
+run_capture() {
+  local output_var="$1"
+  shift
+  local output
+  if output="$("$@" 2>&1)"; then
+    printf -v "$output_var" '%s' "$output"
+    return 0
+  fi
+  printf -v "$output_var" '%s' "$output"
+  return 1
+}
+
+section "source repo"
+if git -C "$SOURCE_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  repo_status="$(git -C "$SOURCE_DIR" status --short --branch)"
+  printf '%s\n' "$repo_status"
+  if [[ -n "$(git -C "$SOURCE_DIR" status --porcelain)" ]]; then
+    fail "source repo has uncommitted changes"
+  else
+    ok "source repo worktree is clean"
+  fi
+  if grep -Eq '\[(ahead|behind|diverged)' <<<"$repo_status"; then
+    fail "source repo branch is not synchronized with its upstream"
+  fi
+else
+  warn "source directory is not a git worktree: $SOURCE_DIR"
+fi
+
+section "chezmoi drift"
+chezmoi_status=""
+if run_capture chezmoi_status "$CHEZMOI_BIN" status --source "$SOURCE_DIR"; then
+  if [[ -z "$chezmoi_status" ]]; then
+    ok "chezmoi targets are clean"
+  else
+    printf '%s\n' "$chezmoi_status"
+    fail "chezmoi has pending or target-side changes"
+  fi
+else
+  printf '%s\n' "$chezmoi_status" >&2
+  fail "chezmoi status failed"
+fi
+
+section "rendered templates"
+rendered_gitconfig="$(mktemp "${TMPDIR:-/tmp}/dots-health-gitconfig.XXXXXX")"
+rendered_brewfile="$(mktemp "${TMPDIR:-/tmp}/dots-health-brewfile.XXXXXX")"
+cleanup() {
+  rm -f "$rendered_gitconfig" "$rendered_brewfile"
+}
+trap cleanup EXIT
+
+if "$CHEZMOI_BIN" execute-template --source "$SOURCE_DIR" '{{ includeTemplate "dot_gitconfig.tmpl" . }}' >"$rendered_gitconfig" \
+  && git config --file "$rendered_gitconfig" --list >/dev/null; then
+  ok "rendered gitconfig parses"
+else
+  fail "rendered gitconfig does not parse"
+fi
+
+if "$CHEZMOI_BIN" execute-template --source "$SOURCE_DIR" '{{ includeTemplate ".chezmoitemplates/homebrew-active-brewfile.tmpl" . }}' >"$rendered_brewfile"; then
+  ok "active Brewfile renders"
+else
+  fail "active Brewfile render failed"
+fi
+
+section "shell syntax"
+if command -v zsh >/dev/null 2>&1; then
+  if [[ -f "$HOME/.zshrc" ]]; then
+    if zsh -n "$HOME/.zshrc"; then
+      ok "~/.zshrc parses"
+    else
+      fail "~/.zshrc has syntax errors"
+    fi
+  else
+    warn "~/.zshrc is missing"
+  fi
+  if [[ -f "$HOME/.zshenv" ]]; then
+    if zsh -n "$HOME/.zshenv"; then
+      ok "~/.zshenv parses"
+    else
+      fail "~/.zshenv has syntax errors"
+    fi
+  else
+    warn "~/.zshenv is missing"
+  fi
+else
+  warn "zsh not found; shell syntax checks skipped"
+fi
+
+section "local git overrides"
+local_gitconfig="$HOME/.config/git/local.gitconfig"
+if [[ -f "$local_gitconfig" ]]; then
+  if git config --file "$local_gitconfig" --list >/dev/null; then
+    ok "local git override file parses"
+  else
+    fail "local git override file does not parse: $local_gitconfig"
+  fi
+  if git config --global --get-all include.path | grep -qx '~/.config/git/local.gitconfig'; then
+    ok "managed gitconfig includes local overrides"
+  else
+    fail "managed gitconfig does not include ~/.config/git/local.gitconfig"
+  fi
+else
+  warn "local git override file is absent: $local_gitconfig"
+fi
+
+section "asdf-owned tools"
+for tool in kubectl helm terraform; do
+  tool_path="$(command -v "$tool" || true)"
+  if [[ -z "$tool_path" ]]; then
+    fail "$tool is not on PATH"
+  elif [[ "$tool_path" == "$HOME/.asdf/shims/$tool" ]]; then
+    ok "$tool resolves through asdf shim"
+  else
+    fail "$tool resolves to $tool_path before the asdf shim"
+  fi
+done
+
+if [[ $RUN_BREW -eq 1 ]]; then
+  section "homebrew"
+  if ! command -v brew >/dev/null 2>&1; then
+    warn "Homebrew not found; brew checks skipped"
+  elif ! command -v dots-brew >/dev/null 2>&1; then
+    warn "dots-brew not found; brew checks skipped"
+  elif ! command -v jq >/dev/null 2>&1; then
+    warn "jq not found; brew audit JSON checks skipped"
+  else
+    audit_json=""
+    if run_capture audit_json dots-brew audit --json; then
+      missing_count="$(jq -r '.missing_count' <<<"$audit_json")"
+      untracked_count="$(jq -r '.untracked_count' <<<"$audit_json")"
+      intentional_count="$(jq -r '.intentional_untracked_count' <<<"$audit_json")"
+      printf 'missing: %s\n' "$missing_count"
+      printf 'untracked: %s\n' "$untracked_count"
+      printf 'intentionally untracked: %s\n' "$intentional_count"
+      if [[ "$missing_count" == "0" && "$untracked_count" == "0" ]]; then
+        ok "Homebrew declared package drift is clean"
+      else
+        fail "Homebrew drift found"
+      fi
+    else
+      printf '%s\n' "$audit_json" >&2
+      fail "dots-brew audit failed"
+    fi
+
+    if [[ $RUN_BREW_PLAN -eq 1 ]]; then
+      brew_check=""
+      if run_capture brew_check brew bundle check --verbose --file "$rendered_brewfile"; then
+        ok "Brewfile dependencies are satisfied"
+      else
+        printf '%s\n' "$brew_check"
+        fail "Brewfile dependencies need sync"
+      fi
+    else
+      warn "brew dependency check skipped by --fast"
+    fi
+  fi
+else
+  section "homebrew"
+  warn "brew checks skipped by --no-brew"
+fi
+
+section "summary"
+printf 'warnings: %d\n' "$warnings"
+printf 'failures: %d\n' "$failures"
+
+if [[ $failures -gt 0 ]]; then
+  exit 1
+fi
+
+exit 0

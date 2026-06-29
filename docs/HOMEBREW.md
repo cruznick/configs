@@ -86,6 +86,12 @@ Show active groups and a drift summary:
 dots-brew status
 ```
 
+Run the full non-destructive dotfiles and Homebrew health check:
+
+```bash
+dots-health
+```
+
 Add a package or app:
 
 1. Edit the appropriate file under `homebrew/Brewfile.*`

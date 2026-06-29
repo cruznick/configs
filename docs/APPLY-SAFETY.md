@@ -23,6 +23,7 @@ Apply only after reviewing changes to high-risk targets:
 Then run:
 
 ```bash
+dots-health --fast
 chezmoi apply --source ~/repos/personal/gh/configs
 dots-brew status
 dots-brew plan
@@ -93,3 +94,13 @@ dots-brew status
 dots-brew plan
 chezmoi status --source ~/repos/personal/gh/configs
 ```
+
+For periodic drift checks, run:
+
+```bash
+dots-health
+```
+
+Use `dots-health --fast` when you want to skip the slower Homebrew dependency
+check. The command is read-only; it does not apply dotfiles, install packages,
+upgrade packages, or run cleanup.

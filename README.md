@@ -140,6 +140,7 @@ See [docs/HOMEBREW.md](docs/HOMEBREW.md).
 ```bash
 dots-debug --json
 dots-profile
+dots-health
 ```
 
 Stable keys in `dots-debug --json`:
@@ -153,8 +154,10 @@ Stable keys in `dots-debug --json`:
 ## Update Workflow
 
 ```bash
+git -C ~/repos/personal/gh/configs pull --ff-only
 chezmoi diff --source ~/repos/personal/gh/configs
 chezmoi status --source ~/repos/personal/gh/configs
+dots-health --fast
 chezmoi apply --source ~/repos/personal/gh/configs
 dots-diff
 dots-edit
