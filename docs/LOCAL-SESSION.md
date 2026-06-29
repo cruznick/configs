@@ -82,3 +82,6 @@ chezmoi status --source ~/repos/personal/gh/configs
 
 If a tool installer modifies `~/.zshrc`, move that block back to the local
 session layer and keep the managed template clean.
+
+See [LOCAL-OVERRIDES.md](LOCAL-OVERRIDES.md) for examples of `~/.zshenv`,
+`.envrc`, local Git overrides, and work-context TOML.

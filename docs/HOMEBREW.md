@@ -128,3 +128,5 @@ installs the active Homebrew Brewfile groups on macOS.
 - `chezmoi` is intentionally unmanaged by Brewfiles because bootstrap installs it separately.
 - Version-pinned runtimes and CLIs (`nodejs`, `python`, `golang`, `terraform`, `kubectl`, `helm`) remain managed by asdf to avoid shim conflicts.
 - `uv` remains Homebrew-managed; asdf owns the Python runtime while `uv` manages project environments and packages.
+- `docker-completion` is intentionally not declared; Homebrew marks it deprecated, and `docker` now owns the completion files.
+- Cleanup is always manual through `dots-brew cleanup`; neither `chezmoi apply` nor `dots-brew sync` uninstalls undeclared packages.

@@ -19,6 +19,9 @@ What bootstrap does:
 6. Runs optional setup hooks without blocking bootstrap
 7. Applies the active Homebrew Brewfile groups on macOS when Homebrew is available
 
+For an existing machine, review [docs/APPLY-SAFETY.md](docs/APPLY-SAFETY.md)
+before running `chezmoi apply`.
+
 ## Config Model
 
 Effective config resolves in this order:
@@ -150,8 +153,9 @@ Stable keys in `dots-debug --json`:
 ## Update Workflow
 
 ```bash
-dots-apply
-dots-update
+chezmoi diff --source ~/repos/personal/gh/configs
+chezmoi status --source ~/repos/personal/gh/configs
+chezmoi apply --source ~/repos/personal/gh/configs
 dots-diff
 dots-edit
 dots-debug --json
@@ -162,6 +166,9 @@ dots-brew cleanup
 dots-brew status
 dots-brew audit --missing
 ```
+
+See [docs/APPLY-SAFETY.md](docs/APPLY-SAFETY.md) for selective apply,
+target-side edit handling, and validation commands.
 
 ## Optional Integrations
 
@@ -198,6 +205,9 @@ Use:
 - work-directory `.envrc` files for secrets, cloud profiles, and temporary tokens
 
 See [docs/LOCAL-SESSION.md](docs/LOCAL-SESSION.md).
+
+Examples for `~/.zshenv`, `~/.config/git/local.gitconfig`, `.envrc`, and local
+work-context TOML live in [docs/LOCAL-OVERRIDES.md](docs/LOCAL-OVERRIDES.md).
 
 ## Secrets
 

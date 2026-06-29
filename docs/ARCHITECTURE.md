@@ -58,6 +58,9 @@ bootstraps and tool-generated blocks live outside this repo, commonly in
 
 See [LOCAL-SESSION.md](LOCAL-SESSION.md).
 
+See [LOCAL-OVERRIDES.md](LOCAL-OVERRIDES.md) for concrete local-only file
+examples.
+
 ## Debugging
 
 Use:
@@ -79,3 +82,6 @@ For raw chezmoi inspection:
 ```bash
 chezmoi execute-template '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}'
 ```
+
+For apply safety, target-side edits, and validation commands, see
+[APPLY-SAFETY.md](APPLY-SAFETY.md).
