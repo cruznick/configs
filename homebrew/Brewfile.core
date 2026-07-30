@@ -15,3 +15,5 @@ brew "coreutils"
 brew "gawk"
 brew "gnu-sed"
 brew "direnv"
+
+cask "chatgpt-classic"

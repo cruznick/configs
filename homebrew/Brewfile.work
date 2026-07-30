@@ -1,6 +1,7 @@
 tap "datadog-labs/pack"
 
 brew "datadog-labs/pack/pup"
+brew "steampipe"
 
 cask "openlens"
 cask "okta-verify"
