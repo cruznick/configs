@@ -22,6 +22,7 @@ if command -v jq >/dev/null 2>&1; then
   jq -r '
     "active_profile: \(.active_profile)",
     "active_provider: \(.active_provider)",
+    "machine_preset: \(.machine_preset)",
     "selected_work_contexts: \(.selected_work_contexts | join(","))",
     "override_file: \(.override_file)",
     "env_overrides: \(.env_overrides | tojson)",

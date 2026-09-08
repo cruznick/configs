@@ -6,9 +6,10 @@ Effective config resolves in this order:
 
 1. `profiles/defaults.toml`
 2. `profiles/personal.toml` or `profiles/work.toml`
-3. `~/.config/dotfiles/overrides.toml`
-4. `~/.config/dotfiles/work-contexts/*.toml`
-5. environment variables
+3. `profiles/machines/mac-dev.toml` or `profiles/machines/mac-minimal.toml`
+4. `~/.config/dotfiles/overrides.toml`
+5. `~/.config/dotfiles/work-contexts/*.toml`
+6. environment variables
 
 Merge semantics:
 - maps deep-merge by key
@@ -21,7 +22,9 @@ Notes:
 - local override `work_contexts = [...]` is an optional filter over local context files
 - `profile = "work"` is only a generic support mode; concrete work identity is still path-scoped by local work contexts
 - local overrides also deep-merge into repo config, including `optional_integrations`
-- repo profile existence checks use the absolute chezmoi source directory, so configuration does not depend on the caller's current directory
+- shared `.chezmoitemplates/base-config.json.tmpl` resolves profiles, presets, and overrides for both effective and Homebrew config; source-relative includes work from any directory
+- `DOTFILES_PROFILE`, `DOTFILES_PROVIDER`, and `DOTFILES_MACHINE_PRESET` override selectors for that command; invalid selectors stop rendering rather than silently falling back
+- capability presets do not select identity or private work contexts; local integration overrides take precedence over the preset
 - work-context `enabled = false` is preserved, including for explicitly filtered contexts
 
 ## Repository Data Types
@@ -49,7 +52,7 @@ Activation:
 - the active Brewfile is rendered from those files via `.chezmoitemplates/homebrew-active-brewfile.tmpl`
 - machine-local enablement is controlled by `optional_integrations.homebrew_*`
 - work-context data is not used for Homebrew selection
-- normal apply/sync installs declared packages only; destructive cleanup is explicit via `dots-brew cleanup`
+- normal apply/sync installs missing declared packages with `--no-upgrade`; explicit `dots-brew update` upgrades only the active Brewfile, not every installed package
 - cleanup previews the audit's typed candidate lists; only untracked requested formulae and casks can be removed, and audit exclusions stay protected
 
 ## asdf Tool Versions
@@ -82,6 +85,7 @@ dots-debug --json
 Stable keys in the JSON output:
 - `active_profile`
 - `active_provider`
+- `machine_preset`
 - `selected_work_contexts`
 - `override_file`
 - `env_overrides`
@@ -95,3 +99,6 @@ chezmoi execute-template '{{ includeTemplate ".chezmoitemplates/effective-config
 
 For apply safety, target-side edits, and validation commands, see
 [APPLY-SAFETY.md](APPLY-SAFETY.md).
+
+For per-machine onboarding, supported presets, and future Linux considerations,
+see [MULTI-MACHINE.md](MULTI-MACHINE.md). GitHub Actions validates macOS only.

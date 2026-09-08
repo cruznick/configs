@@ -14,6 +14,10 @@ docs/
 tests/
 tests/**
 
+# CI configuration belongs only in the source repo.
+.github/
+.github/**
+
 # Manual app-export artifacts — reference only, never deployed by chezmoi
 apps/**
 apps/
@@ -43,3 +47,10 @@ LICENSE
 
 # macOS
 .DS_Store
+
+# Do not manage 1Password's local configuration when the integration is disabled.
+{{ $base := includeTemplate ".chezmoitemplates/base-config.json.tmpl" . | fromJson }}
+{{ if not $base.config.optional_integrations.onepassword }}
+.config/1Password/**
+.config/1Password/
+{{ end }}

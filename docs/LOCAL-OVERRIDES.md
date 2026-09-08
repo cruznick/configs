@@ -3,6 +3,23 @@
 These files are intentionally local-only. They are not tracked by this repo.
 Use them to keep machine-specific state out of managed dotfiles.
 
+## Machine Preset
+
+```toml
+# ~/.config/dotfiles/overrides.toml
+machine_preset = "mac-dev" # or mac-minimal
+profile = "personal"
+provider = "gh"
+work_contexts = []
+
+[optional_integrations]
+homebrew_work = true # independent of profile and private work identity
+```
+
+Keep only exceptions to the preset in `[optional_integrations]`; copying every
+flag freezes those choices even when the preset changes. Existing overrides are
+never rewritten by bootstrap. See [MULTI-MACHINE.md](MULTI-MACHINE.md).
+
 ## Git
 
 Path:

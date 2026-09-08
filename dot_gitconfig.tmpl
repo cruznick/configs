@@ -17,7 +17,7 @@
   {{- $tagSigningEnabled = (index $git "tag_gpgsign") -}}
 {{- end -}}
 {{- $personalSigningReady := false -}}
-{{- if and $signingEnabled (stat $personalSigningKeyAbs) -}}
+{{- if and $signingEnabled $cfg.optional_integrations.onepassword (stat $personalSigningKeyAbs) -}}
   {{- $personalSigningReady = true -}}
 {{- end -}}
 {{- $personalRewriteHost := ternary "gitlab.com-personal" "github.com-personal" (eq $provider "gl") -}}
@@ -28,8 +28,10 @@
   excludesfile = ~/.gitignore
   editor = nano
 
+{{ if $cfg.optional_integrations.homebrew_dev -}}
 [diff]
   external = difft
+{{ end }}
 
 [filter "lfs"]
   clean    = git-lfs clean -- %f
@@ -40,12 +42,14 @@
 [gpg]
   format = ssh
 
+{{ if $cfg.optional_integrations.onepassword -}}
 [gpg "ssh"]
 {{- if eq .chezmoi.os "darwin" }}
   program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 {{- else }}
   program = op-ssh-sign
 {{- end }}
+{{ end }}
 
 [commit]
   gpgsign = {{ and $commitSigningEnabled $personalSigningReady }}
@@ -73,7 +77,7 @@
   email = {{ ((index $identity "git_email") | default "") | quote }}
 {{- if $personalSigningReady }}
   signingkey = {{ $personalSigningKey | quote }}
-{{- else if $signingEnabled }}
+{{- else if and $signingEnabled $cfg.optional_integrations.onepassword }}
   # signingkey intentionally omitted until {{ $personalSigningKey }} exists and matches a 1Password SSH key item.
 {{- end }}
 

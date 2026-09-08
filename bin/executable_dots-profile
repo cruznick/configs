@@ -12,6 +12,7 @@ if command -v jq >/dev/null 2>&1; then
   jq -r '
     "profile=\(.active_profile)",
     "provider=\(.active_provider)",
+    "machine_preset=\(.machine_preset)",
     "work_contexts=\(.selected_work_contexts | join(","))"
   ' <<<"$JSON"
 else

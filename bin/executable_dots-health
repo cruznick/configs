@@ -107,6 +107,18 @@ run_capture() {
   return 1
 }
 
+section "machine config"
+config_flags=""
+if run_capture config_flags "$CHEZMOI_BIN" execute-template --source "$SOURCE_DIR" \
+  '{{ $cfg := includeTemplate ".chezmoitemplates/homebrew-config.json.tmpl" . | fromJson }}{{ $o := $cfg.optional_integrations }}{{ $o.asdf }} {{ or $o.homebrew_core $o.homebrew_dev $o.homebrew_apps $o.homebrew_extras $o.homebrew_work }}'; then
+  read -r ASDF_ENABLED HOMEBREW_ENABLED <<<"$config_flags"
+  ok "optional integration settings render"
+else
+  printf '%s\n' "$config_flags" >&2
+  fail "machine configuration does not render"
+  exit 1
+fi
+
 section "source repo"
 if git -C "$SOURCE_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   repo_status="$(git -C "$SOURCE_DIR" status --short --branch)"
@@ -228,31 +240,35 @@ else
 fi
 
 section "asdf-owned tools"
-for tool in node python go kubectl helm terraform; do
-  tool_path="$(command -v "$tool" || true)"
-  if [[ -z "$tool_path" ]]; then
-    fail "$tool is not on PATH"
-  elif [[ "$tool_path" == "${ASDF_DATA_DIR:-$HOME/.asdf}/shims/$tool" ]]; then
-    ok "$tool resolves through asdf shim"
-  else
-    fail "$tool resolves to $tool_path before the asdf shim"
-  fi
-done
-
-if command -v asdf >/dev/null 2>&1; then
-  while read -r plugin version remainder; do
-    [[ -z "$plugin" || "$plugin" == \#* ]] && continue
-    if asdf where "$plugin" "$version" >/dev/null 2>&1; then
-      ok "asdf $plugin $version is installed"
+if [[ "$ASDF_ENABLED" == "true" ]]; then
+  for tool in node python go kubectl helm terraform; do
+    tool_path="$(command -v "$tool" || true)"
+    if [[ -z "$tool_path" ]]; then
+      fail "$tool is not on PATH"
+    elif [[ "$tool_path" == "${ASDF_DATA_DIR:-$HOME/.asdf}/shims/$tool" ]]; then
+      ok "$tool resolves through asdf shim"
     else
-      fail "asdf $plugin $version is not installed"
+      fail "$tool resolves to $tool_path before the asdf shim"
     fi
-  done <"$SOURCE_DIR/dot_tool-versions"
+  done
+
+  if command -v asdf >/dev/null 2>&1; then
+    while read -r plugin version remainder; do
+      [[ -z "$plugin" || "$plugin" == \#* ]] && continue
+      if asdf where "$plugin" "$version" >/dev/null 2>&1; then
+        ok "asdf $plugin $version is installed"
+      else
+        fail "asdf $plugin $version is not installed"
+      fi
+    done <"$SOURCE_DIR/dot_tool-versions"
+  else
+    fail "asdf is not on PATH"
+  fi
 else
-  fail "asdf is not on PATH"
+  ok "asdf is disabled; runtime and shim checks skipped"
 fi
 
-if [[ $RUN_BREW -eq 1 ]]; then
+if [[ $RUN_BREW -eq 1 && "$HOMEBREW_ENABLED" == "true" ]]; then
   section "homebrew"
   if ! command -v brew >/dev/null 2>&1; then
     warn "Homebrew not found; brew checks skipped"
@@ -281,7 +297,7 @@ if [[ $RUN_BREW -eq 1 ]]; then
 
     if [[ $RUN_BREW_PLAN -eq 1 ]]; then
       brew_check=""
-      if run_capture brew_check brew bundle check --verbose --file "$rendered_brewfile"; then
+      if run_capture brew_check brew bundle check --no-upgrade --verbose --file "$rendered_brewfile"; then
         ok "Brewfile dependencies are satisfied"
       else
         printf '%s\n' "$brew_check"
@@ -293,7 +309,11 @@ if [[ $RUN_BREW -eq 1 ]]; then
   fi
 else
   section "homebrew"
-  warn "brew checks skipped by --no-brew"
+  if [[ $RUN_BREW -eq 0 ]]; then
+    warn "brew checks skipped by --no-brew"
+  else
+    ok "all Homebrew groups are disabled; brew checks skipped"
+  fi
 fi
 
 section "summary"

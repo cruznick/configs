@@ -1,0 +1,48 @@
+{{/* Shared profile/preset/override resolution; deliberately excludes private work contexts. */}}
+{{- $defaults := include "profiles/defaults.toml" | fromToml -}}
+{{- $overrideFile := joinPath .chezmoi.homeDir ".config" "dotfiles" "overrides.toml" -}}
+{{- $overrides := dict -}}
+{{- $hasOverrideFile := false -}}
+{{- if stat $overrideFile -}}
+  {{- $hasOverrideFile = true -}}
+  {{- $overrides = include $overrideFile | fromToml -}}
+{{- end -}}
+
+{{- $envOverrides := dict -}}
+{{- range $name := list "DOTFILES_PROFILE" "DOTFILES_PROVIDER" "DOTFILES_MACHINE_PRESET" -}}
+  {{- if env $name -}}
+    {{- $_ := set $envOverrides $name (env $name) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $activeProfile := (env "DOTFILES_PROFILE") | default (index $overrides "profile") | default $defaults.default_profile -}}
+{{- if not (has $activeProfile (list "personal" "work")) -}}
+  {{- fail (printf "Unknown profile %q; choose personal or work" $activeProfile) -}}
+{{- end -}}
+{{- $profilePath := printf "profiles/%s.toml" $activeProfile -}}
+{{- $profileData := include $profilePath | fromToml -}}
+
+{{- $machinePreset := (env "DOTFILES_MACHINE_PRESET") | default (index $overrides "machine_preset") | default $defaults.default_machine_preset -}}
+{{- if not (has $machinePreset (list "mac-dev" "mac-minimal")) -}}
+  {{- fail (printf "Unknown machine preset %q; choose mac-dev or mac-minimal" $machinePreset) -}}
+{{- end -}}
+{{- $presetPath := printf "profiles/machines/%s.toml" $machinePreset -}}
+{{- $presetData := include $presetPath | fromToml -}}
+{{- $cfg := mergeOverwrite (deepCopy $defaults) $profileData $presetData $overrides -}}
+
+{{- $providerDefault := (index ($cfg.providers | default dict) "default") | default (index (index $cfg.profiles $activeProfile) "default_provider") | default "gh" -}}
+{{- $activeProvider := (env "DOTFILES_PROVIDER") | default (index $overrides "provider") | default $providerDefault -}}
+{{- if not (has $activeProvider (list "gh" "gl")) -}}
+  {{- fail (printf "Unknown provider %q; choose gh or gl" $activeProvider) -}}
+{{- end -}}
+
+{{- dict
+  "config" $cfg
+  "overrides" $overrides
+  "active_profile" $activeProfile
+  "active_provider" $activeProvider
+  "machine_preset" $machinePreset
+  "override_file" (ternary $overrideFile "" $hasOverrideFile)
+  "env_overrides" $envOverrides
+  "merge_order" (list "profiles/defaults.toml" $profilePath $presetPath "~/.config/dotfiles/overrides.toml" "environment variables")
+  | toPrettyJson -}}

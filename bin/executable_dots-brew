@@ -16,9 +16,9 @@ Usage:
 
 Commands:
   render   write the active Brewfile to stdout
-  sync     install the active Brewfile with brew bundle
-  update   brew update && brew upgrade && sync declared Brewfiles
-  plan     dry-run the install/upgrade work sync would perform
+  sync     install missing active packages without explicitly upgrading installed ones
+  update   refresh Homebrew and install/upgrade the active Brewfile only
+  plan     check which packages sync would need to install
   cleanup  preview/confirm removal of untracked requested formulae and casks
   status   show active groups and current drift summary
   audit    compare installed packages against the active Brewfile
@@ -97,16 +97,16 @@ plan_with_brewfile() {
   "$0" groups
   echo ""
   echo "Planned sync command:"
-  echo "  brew bundle install --file=$file"
+  echo "  brew bundle install --no-upgrade --file=$file"
   echo "Cleanup is not part of sync."
   echo "Use: dots-brew cleanup"
   echo ""
-  if brew bundle check --verbose --file "$file"; then
-    echo "No installs or upgrades are needed."
+  if brew bundle check --no-upgrade --verbose --file "$file"; then
+    echo "No missing packages. Upgrades are a separate, explicit operation: dots-brew update"
   else
     echo ""
-    echo "Changes are needed to match the active Brewfile."
-    echo "Use: dots-brew sync"
+    echo "Homebrew did not confirm that all active packages are installed."
+    echo "Review the output above; if packages are missing, use: dots-brew sync"
   fi
 }
 
@@ -204,13 +204,12 @@ case "$cmd" in
     ;;
   sync)
     require_brew
-    with_brewfile brew bundle install --file
+    with_brewfile brew bundle install --no-upgrade --file
     ;;
   update)
     require_brew
     brew update
-    brew upgrade
-    with_brewfile brew bundle install --file
+    with_brewfile brew bundle install --upgrade --file
     ;;
   plan)
     require_brew

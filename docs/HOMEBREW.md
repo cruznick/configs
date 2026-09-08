@@ -21,7 +21,9 @@ not parse private work-context files.
 
 ## Machine Selection
 
-Group enablement is controlled through the existing local override model:
+Presets provide group defaults: `mac-dev` enables core/dev/apps; `mac-minimal`
+enables core only. Work apps and extras remain opt-in. Each group is independent:
+disabling core does not disable another enabled group. Local flags override presets:
 
 ```toml
 # ~/.config/dotfiles/overrides.toml
@@ -33,7 +35,7 @@ homebrew_extras = false
 homebrew_work = false
 ```
 
-Default behavior from the repo:
+Default behavior for `mac-dev` (also used by existing overrides without a preset):
 
 - `homebrew_core = true`
 - `homebrew_dev = true`
@@ -51,7 +53,11 @@ Update everything declared for the current machine:
 dots-brew update
 ```
 
-Install or re-sync the declared state without a general upgrade:
+This refreshes Homebrew metadata and runs `brew bundle install --upgrade` for the
+active Brewfile. It does not run a global `brew upgrade` or upgrade undeclared
+packages intentionally. Homebrew can still update required shared dependencies.
+
+Install missing declared packages without explicitly upgrading installed ones:
 
 ```bash
 dots-brew sync
@@ -59,7 +65,7 @@ dots-brew sync
 
 Normal sync behavior:
 
-- runs `brew bundle install` for the active Brewfile
+- runs `brew bundle install --no-upgrade` for the active Brewfile
 - does not uninstall undeclared packages
 - is what `chezmoi apply` uses in the brew onchange hook
 
@@ -69,7 +75,13 @@ Preview what `dots-brew sync` would do:
 dots-brew plan
 ```
 
-This previews install or upgrade work only. It does not perform cleanup.
+This uses `brew bundle check --no-upgrade` to report missing packages. It does not
+install, upgrade, or perform cleanup. `dots-health` uses the same check, so an
+available upgrade alone is not treated as missing-package drift.
+
+This is predictable update *intent*, not a package lockfile. Installing a missing
+package can update a shared dependency, and self-updating apps can change outside
+Homebrew. See [Homebrew's Bundle documentation](https://docs.brew.sh/Brew-Bundle-and-Brewfile).
 
 Preview removal candidates without changing installed packages:
 
@@ -149,8 +161,9 @@ Bootstrap a new machine:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/cruznick/configs/main/install.sh)"
 ```
 
-That installs Homebrew if needed, initializes chezmoi, applies the repo, and then
-installs the active Homebrew Brewfile groups on macOS.
+That installs Homebrew if needed, selects/preserves the local preset before
+initializing/updating chezmoi's source, applies the repo, and installs missing
+packages from the active Homebrew groups. See [MULTI-MACHINE.md](MULTI-MACHINE.md).
 
 ## Notes
 
@@ -162,4 +175,6 @@ installs the active Homebrew Brewfile groups on macOS.
 - `uv` remains Homebrew-managed; asdf owns the Python runtime while `uv` manages project environments and packages.
 - `docker-completion` is intentionally not declared; Homebrew marks it deprecated, and `docker` now owns the completion files.
 - The work group uses `claude-code@latest` for Claude Code's latest channel, matching the installed CLI selection.
+- Core declares Homebrew Bash because the audit helper requires Bash 4+ (macOS ships Bash 3.2).
+- `chatgpt-classic` belongs to the apps group; core contains no GUI casks.
 - Cleanup is always manual through `dots-brew cleanup`; neither `chezmoi apply` nor `dots-brew sync` uninstalls undeclared packages.

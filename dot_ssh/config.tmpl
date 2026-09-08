@@ -25,21 +25,21 @@ Host *
 Host github.com-personal
   HostName github.com
   User git
-{{- if stat $personalGhSelector }}
+{{- if and $onepasswordEnabled (stat $personalGhSelector) }}
   IdentitiesOnly yes
   IdentityFile ~/.ssh/signing-pubs/personal-gh.pub
 {{- else }}
-  # No exported public-key selector found; rely on the 1Password SSH agent defaults.
+  # No active public-key selector; use the normal SSH key/agent defaults.
 {{- end }}
 
 Host gitlab.com-personal
   HostName gitlab.com
   User git
-{{- if stat $personalGlSelector }}
+{{- if and $onepasswordEnabled (stat $personalGlSelector) }}
   IdentitiesOnly yes
   IdentityFile ~/.ssh/signing-pubs/personal-gl.pub
 {{- else }}
-  # No exported public-key selector found; rely on the 1Password SSH agent defaults.
+  # No active public-key selector; use the normal SSH key/agent defaults.
 {{- end }}
 
 # ── Local work identities for Git access ─────────────────────────────────────
@@ -54,11 +54,11 @@ Host {{ (index $ssh "github_alias") | default (printf "github.com-%s" $slug) }}
 {{- $ghSelector := ((index $ssh "github_identity_file") | default "") -}}
 {{- if $ghSelector }}
 {{- $ghSelectorAbs := regexReplaceAll "^~" $ghSelector $.chezmoi.homeDir -}}
-{{- if stat $ghSelectorAbs }}
+{{- if and $onepasswordEnabled (stat $ghSelectorAbs) }}
   IdentitiesOnly yes
   IdentityFile {{ $ghSelector }}
 {{- else }}
-  # Selector file {{ $ghSelector }} is missing; rely on the 1Password SSH agent defaults.
+  # Selector file {{ $ghSelector }} is missing or disabled; use normal SSH key/agent defaults.
 {{- end }}
 {{- end }}
 {{ end -}}
@@ -69,11 +69,11 @@ Host {{ (index $ssh "gitlab_alias") | default (printf "gitlab.com-%s" $slug) }}
 {{- $glSelector := ((index $ssh "gitlab_identity_file") | default "") -}}
 {{- if $glSelector }}
 {{- $glSelectorAbs := regexReplaceAll "^~" $glSelector $.chezmoi.homeDir -}}
-{{- if stat $glSelectorAbs }}
+{{- if and $onepasswordEnabled (stat $glSelectorAbs) }}
   IdentitiesOnly yes
   IdentityFile {{ $glSelector }}
 {{- else }}
-  # Selector file {{ $glSelector }} is missing; rely on the 1Password SSH agent defaults.
+  # Selector file {{ $glSelector }} is missing or disabled; use normal SSH key/agent defaults.
 {{- end }}
 {{- end }}
 {{ end -}}

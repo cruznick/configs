@@ -1,55 +1,9 @@
-{{- $defaults := include "profiles/defaults.toml" | fromToml -}}
-{{- $overrideFile := joinPath .chezmoi.homeDir ".config" "dotfiles" "overrides.toml" -}}
+{{- $base := includeTemplate ".chezmoitemplates/base-config.json.tmpl" . | fromJson -}}
+{{- $cfg := $base.config -}}
+{{- $overrides := $base.overrides -}}
+{{- $activeProfile := $base.active_profile -}}
+{{- $activeProvider := $base.active_provider -}}
 {{- $workContextDir := joinPath .chezmoi.homeDir ".config" "dotfiles" "work-contexts" -}}
-{{- $overrides := dict -}}
-{{- $hasOverrideFile := false -}}
-{{- if stat $overrideFile -}}
-  {{- $hasOverrideFile = true -}}
-  {{- $overrides = include $overrideFile | fromToml -}}
-{{- end -}}
-
-{{- $envOverrides := dict -}}
-{{- $envProfile := env "DOTFILES_PROFILE" -}}
-{{- if $envProfile -}}
-  {{- $_ := set $envOverrides "DOTFILES_PROFILE" $envProfile -}}
-{{- end -}}
-{{- $envProvider := env "DOTFILES_PROVIDER" -}}
-{{- if $envProvider -}}
-  {{- $_ := set $envOverrides "DOTFILES_PROVIDER" $envProvider -}}
-{{- end -}}
-
-{{- $defaultProfile := (index $defaults "default_profile") | default "personal" -}}
-{{- $activeProfile := $defaultProfile -}}
-{{- if (index $overrides "profile") -}}
-  {{- $activeProfile = index $overrides "profile" -}}
-{{- end -}}
-{{- if $envProfile -}}
-  {{- $activeProfile = $envProfile -}}
-{{- end -}}
-{{- if not (has $activeProfile (list "personal" "work")) -}}
-  {{- $activeProfile = $defaultProfile -}}
-{{- end -}}
-
-{{- $profilePath := joinPath "profiles" (printf "%s.toml" $activeProfile) -}}
-{{- $profileData := dict -}}
-{{- if stat (joinPath .chezmoi.sourceDir $profilePath) -}}
-  {{- $profileData = include $profilePath | fromToml -}}
-{{- end -}}
-{{- $cfg := mergeOverwrite (deepCopy $defaults) $profileData $overrides -}}
-
-{{- $activeProvider := (((index (index $cfg "providers" | default dict) "default") | default "") | toString) -}}
-{{- if eq $activeProvider "" -}}
-  {{- $activeProvider = (((index (index (index $cfg "profiles" | default dict) $activeProfile | default dict) "default_provider") | default "gh") | toString) -}}
-{{- end -}}
-{{- if (index $overrides "provider") -}}
-  {{- $activeProvider = index $overrides "provider" -}}
-{{- end -}}
-{{- if $envProvider -}}
-  {{- $activeProvider = $envProvider -}}
-{{- end -}}
-{{- if not (has $activeProvider (list "gh" "gl")) -}}
-  {{- $activeProvider = "gh" -}}
-{{- end -}}
 
 {{- $legacyContexts := dict -}}
 {{- if (index . "companies") -}}
@@ -148,14 +102,15 @@
 {{- end -}}
 
 {{- $result := dict
-  "schema_version" ((index $defaults "schema_version") | default 1)
+  "schema_version" $cfg.schema_version
+  "machine_preset" $base.machine_preset
   "active_profile" $activeProfile
   "active_provider" $activeProvider
   "selected_work_contexts" $selectedWorkContexts
   "available_work_contexts" ($availableWorkContexts | sortAlpha)
-  "override_file" (ternary $overrideFile "" $hasOverrideFile)
+  "override_file" $base.override_file
   "work_context_dir" $workContextDir
-  "env_overrides" $envOverrides
+  "env_overrides" $base.env_overrides
   "optional_integrations" $optionalIntegrations
   "identity" $identity
   "providers" ((index $cfg "providers") | default dict)
@@ -167,6 +122,7 @@
   "merge_order" (list
     "profiles/defaults.toml"
     (printf "profiles/%s.toml" $activeProfile)
+    (printf "profiles/machines/%s.toml" $base.machine_preset)
     "~/.config/dotfiles/overrides.toml"
     "~/.config/dotfiles/work-contexts/*.toml"
     "environment variables") -}}

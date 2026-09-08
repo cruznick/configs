@@ -1,0 +1,38 @@
+name: Validate dotfiles
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install validation tools
+        run: |
+          brew install chezmoi bash jq
+          echo "$(brew --prefix)/bin" >> "$GITHUB_PATH"
+      - name: Check validation prerequisites
+        run: |
+          command -v chezmoi bash jq zsh python3
+          bash -c 'test "$BASH_VERSINFO" -ge 4'
+      - name: Run isolated regression and syntax checks
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python3 -m unittest discover -s tests -v

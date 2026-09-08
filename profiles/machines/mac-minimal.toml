@@ -1,0 +1,11 @@
+# Shell/CLI Mac without development runtimes, GUI apps, or 1Password integration.
+[optional_integrations]
+homebrew_core = true
+homebrew_dev = false
+homebrew_apps = false
+homebrew_extras = false
+homebrew_work = false
+zinit = true
+asdf = false
+onepassword = false
+ssh_key_export = false

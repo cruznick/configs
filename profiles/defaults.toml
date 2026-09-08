@@ -1,5 +1,6 @@
 schema_version = 1
 default_profile = "personal"
+default_machine_preset = "mac-dev"
 
 [profiles.personal]
 default_provider = "gh"

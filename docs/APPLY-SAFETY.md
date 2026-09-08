@@ -5,6 +5,12 @@ Git, or work configuration.
 
 ## First Apply Or Update
 
+On a new Mac, bootstrap chooses `mac-dev` or `mac-minimal` and creates local
+overrides before the first apply. On an existing Mac it preserves overrides and
+updates source without an implicit apply. For a preset change, edit the top-level
+`machine_preset` in local overrides first; explicit integration flags still win.
+See [MULTI-MACHINE.md](MULTI-MACHINE.md).
+
 Inspect before writing:
 
 ```bash

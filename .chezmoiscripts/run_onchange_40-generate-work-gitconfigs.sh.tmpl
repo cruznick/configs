@@ -38,9 +38,9 @@ generated_count=0
 {{ if hasKey $git "commit_gpgsign" }}
 {{ $signingEnabled = (index $git "commit_gpgsign") }}
 {{ end }}
-{{ $signingKeyAbs := regexReplaceAll "^~" $signingKey (env "HOME") }}
+{{ $signingKeyAbs := regexReplaceAll "^~" $signingKey $.chezmoi.homeDir }}
 {{ $signingReady := false }}
-{{ if and $signingKey $signingEnabled (stat $signingKeyAbs) }}
+{{ if and $signingKey $signingEnabled $cfg.optional_integrations.onepassword (stat $signingKeyAbs) }}
 {{ $signingReady = true }}
 {{ end }}
 cat > "$generated_dir/work-{{ $slug }}.gitconfig" <<'EOF'
@@ -49,7 +49,7 @@ cat > "$generated_dir/work-{{ $slug }}.gitconfig" <<'EOF'
   email = {{ ((index $git "email") | default "") | quote }}
 {{- if $signingReady }}
   signingkey = {{ $signingKey | quote }}
-{{- else if $signingKey }}
+{{- else if and $signingKey $cfg.optional_integrations.onepassword }}
   # signingkey intentionally omitted until {{ $signingKey }} exists and matches a 1Password SSH key item.
 {{- end }}
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Deterministic chezmoi bootstrap for macOS/Linux
+# install.sh — chezmoi bootstrap for macOS (Linux is unvalidated).
 set -euo pipefail
 
 REPO="cruznick/configs"
@@ -7,14 +7,56 @@ REPO_URL="https://github.com/${REPO}.git"
 CHEZMOI_BIN_DIR="$HOME/.local/bin"
 OVERRIDES_DIR="$HOME/.config/dotfiles"
 OVERRIDES_FILE="$OVERRIDES_DIR/overrides.toml"
+MACHINE_PRESET="${DOTFILES_MACHINE_PRESET:-}"
 
 log()  { printf "\n[INFO] %s\n" "$*"; }
 ok()   { printf "[OK] %s\n" "$*"; }
 warn() { printf "[WARN] %s\n" "$*" >&2; }
 die()  { printf "[ERROR] %s\n" "$*" >&2; exit 1; }
 
+usage() {
+  cat <<'EOF'
+Usage: bash install.sh [--preset mac-dev|mac-minimal]
+
+mac-dev      Development tools, GUI apps, asdf, zinit, and 1Password (default).
+mac-minimal  Core command-line tools and zinit, without runtimes or GUI apps.
+
+Existing overrides.toml is preserved. To change an existing machine, edit its
+machine_preset there, review chezmoi diff, then apply. Work apps are a local switch.
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --preset)
+        [[ $# -ge 2 && -n "$2" ]] || die "--preset requires mac-dev or mac-minimal"
+        MACHINE_PRESET="$2"
+        shift 2
+        ;;
+      --preset=*)
+        MACHINE_PRESET="${1#*=}"
+        [[ -n "$MACHINE_PRESET" ]] || die "--preset requires mac-dev or mac-minimal"
+        shift
+        ;;
+      -h|--help) usage; exit 0 ;;
+      *) die "Unknown argument: $1 (use --help)" ;;
+    esac
+  done
+  case "$MACHINE_PRESET" in
+    ""|mac-dev|mac-minimal) ;;
+    *) die "Unknown preset: $MACHINE_PRESET (choose mac-dev or mac-minimal)" ;;
+  esac
+  # An explicit CLI selection wins over an inherited environment selection.
+  if [[ -n "$MACHINE_PRESET" ]]; then
+    export DOTFILES_MACHINE_PRESET="$MACHINE_PRESET"
+  fi
+}
+
 script_dir() {
-  cd "$(dirname "${BASH_SOURCE[0]}")" && pwd
+  local source_file="${BASH_SOURCE[0]:-}"
+  [[ -n "$source_file" ]] || return 1
+  cd "$(dirname "$source_file")" && pwd
 }
 
 is_supported_os() {
@@ -78,7 +120,7 @@ install_chezmoi() {
 
 find_local_source_candidate() {
   local candidate
-  candidate="$(script_dir)"
+  candidate="$(script_dir || true)"
   if is_valid_git_repo "$candidate" && repo_matches_expected "$candidate"; then
     printf '%s\n' "$candidate"
     return 0
@@ -109,7 +151,11 @@ init_or_update_source() {
     log "Found existing chezmoi source: $current"
     if is_valid_git_repo "$current" && repo_matches_expected "$current"; then
       log "Updating existing chezmoi source"
-      chezmoi update || die "chezmoi update failed"
+      if [[ -n "$(git -C "$current" status --porcelain)" ]]; then
+        die "Commit or stash source changes before updating: $current"
+      fi
+      # Fetch source changes without implicitly applying them.
+      git -C "$current" pull --ff-only || die "Source update failed"
       ok "chezmoi source updated"
       return 0
     fi
@@ -128,14 +174,28 @@ init_or_update_source() {
 }
 
 seed_local_overrides() {
-  mkdir -p "$OVERRIDES_DIR"
   if [[ -f "$OVERRIDES_FILE" ]]; then
+    if [[ -n "$MACHINE_PRESET" ]]; then
+      local existing_preset
+      existing_preset="$(DOTFILES_BOOTSTRAP_OVERRIDES="$OVERRIDES_FILE" chezmoi execute-template '{{ (include (env "DOTFILES_BOOTSTRAP_OVERRIDES") | fromToml).machine_preset | default "mac-dev" }}')" || die "Cannot read existing overrides"
+      [[ "$MACHINE_PRESET" == "$existing_preset" ]] || die "Existing preset is $existing_preset. Edit machine_preset in $OVERRIDES_FILE first; no overrides were replaced."
+    fi
     ok "Local overrides already present"
     return 0
   fi
+  if [[ -z "$MACHINE_PRESET" && -t 0 ]]; then
+    read -r -p "Machine preset [mac-dev/mac-minimal] (default mac-dev): " MACHINE_PRESET || MACHINE_PRESET=""
+  fi
+  MACHINE_PRESET="${MACHINE_PRESET:-mac-dev}"
+  case "$MACHINE_PRESET" in
+    mac-dev|mac-minimal) ;;
+    *) die "Unknown preset: $MACHINE_PRESET (choose mac-dev or mac-minimal)" ;;
+  esac
+  mkdir -p "$OVERRIDES_DIR"
   log "Creating local overrides file"
-  cat >"$OVERRIDES_FILE" <<'EOF'
+  cat >"$OVERRIDES_FILE" <<EOF
 # Machine-local, non-secret overrides.
+machine_preset = "$MACHINE_PRESET"
 profile = "personal"
 provider = "gh"
 work_contexts = []
@@ -163,7 +223,11 @@ apply_dotfiles() {
 }
 
 main() {
+  parse_args "$@"
   is_supported_os || die "Unsupported OS: $(uname)"
+  if [[ "$(uname)" == "Linux" ]]; then
+    warn "macOS is the supported platform; Linux bootstrap is unvalidated and macOS hooks will skip."
+  fi
   ensure_curl
   log "Bootstrapping dotfiles for $(uname)"
 
@@ -172,8 +236,8 @@ main() {
 
   local candidate=""
   candidate="$(find_local_source_candidate || true)"
-  init_or_update_source "$candidate"
   seed_local_overrides
+  init_or_update_source "$candidate"
   apply_dotfiles
 
   log "Bootstrap complete"
@@ -192,4 +256,6 @@ Legacy support is transitional and will be removed after migration.
 EOF
 }
 
-main "$@"
+if [[ -z "${BASH_SOURCE[0]:-}" || "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

@@ -4,20 +4,32 @@ Personal dotfiles managed by [chezmoi](https://chezmoi.io).
 
 ## Bootstrap
 
-macOS or Linux:
+macOS (the supported platform):
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/cruznick/configs/main/install.sh)"
 ```
 
 What bootstrap does:
+
 1. Installs Homebrew on macOS if needed
 2. Installs chezmoi if needed
-3. Verifies or repairs the chezmoi source
-4. Creates `~/.config/dotfiles/overrides.toml` if missing
+3. Selects a machine preset and creates `~/.config/dotfiles/overrides.toml` if missing; existing overrides are preserved
+4. Verifies or repairs the chezmoi source; existing sources update with `git pull --ff-only`, without an implicit apply
 5. Runs `chezmoi apply`
 6. Runs optional setup hooks without blocking bootstrap
 7. Applies the active Homebrew Brewfile groups on macOS when Homebrew is available
+
+Choose `mac-dev` (default) or `mac-minimal` before the first apply:
+
+```bash
+bash install.sh --preset mac-minimal
+```
+
+Interactive bootstrap asks if no preset is supplied and no local overrides exist.
+Noninteractive bootstrap defaults to `mac-dev`. See
+[docs/MULTI-MACHINE.md](docs/MULTI-MACHINE.md) for presets, per-Mac setup, and the
+possible future Linux approach. Linux is not a tested/supported setup today.
 
 For an existing machine, review [docs/APPLY-SAFETY.md](docs/APPLY-SAFETY.md)
 before running `chezmoi apply`.
@@ -25,11 +37,13 @@ before running `chezmoi apply`.
 ## Config Model
 
 Effective config resolves in this order:
+
 1. `profiles/defaults.toml`
 2. `profiles/personal.toml` or `profiles/work.toml`
-3. `~/.config/dotfiles/overrides.toml`
-4. `~/.config/dotfiles/work-contexts/*.toml`
-5. environment variables
+3. `profiles/machines/mac-dev.toml` or `profiles/machines/mac-minimal.toml`
+4. `~/.config/dotfiles/overrides.toml`
+5. `~/.config/dotfiles/work-contexts/*.toml`
+6. environment variables (`DOTFILES_PROFILE`, `DOTFILES_PROVIDER`, `DOTFILES_MACHINE_PRESET`)
 
 Merge rules:
 - maps deep-merge
@@ -39,6 +53,7 @@ Merge rules:
 Profile model:
 - `profile = personal | work`
 - `provider = gh | gl`
+- `machine_preset = mac-dev | mac-minimal` (capabilities, independent of identity)
 
 `work` is a generic support mode only. Concrete work identity still comes from
 local work-context files and path-based matching, not from a single global
@@ -48,6 +63,7 @@ Local machine selection lives in:
 
 ```toml
 # ~/.config/dotfiles/overrides.toml
+machine_preset = "mac-dev"
 profile = "personal"
 provider = "gh"
 work_contexts = []
@@ -100,7 +116,7 @@ Homebrew-specific config from profiles and `~/.config/dotfiles/overrides.toml`.
 It does not parse private work-context files, so a broken local work context
 does not block Brewfile rendering.
 
-Default group enablement:
+Default group enablement (`mac-dev`; `mac-minimal` enables only core):
 - `homebrew_core = true`
 - `homebrew_dev = true`
 - `homebrew_apps = true`
@@ -120,8 +136,8 @@ homebrew_work = false
 ```
 
 Workflows:
-- Update declared brew state: `dots-brew update`
-- Install/sync declared brew state: `dots-brew sync`
+- Explicitly install/upgrade active declared brew state: `dots-brew update`
+- Install missing declared packages without explicit upgrades: `dots-brew sync`
 - Preview sync work: `dots-brew plan`
 - Preview removal candidates without changing packages: `dots-brew cleanup --dry-run`
 - Cleanup undeclared packages explicitly: `dots-brew cleanup`
@@ -134,6 +150,7 @@ Workflows:
 Operational rule:
 - direct `brew install` is fine for testing, but persistent state must be added to `homebrew/Brewfile.*`
 - `chezmoi apply` and `dots-brew sync` do not uninstall undeclared packages
+- apply/sync use `--no-upgrade`; Homebrew may still update shared dependencies needed by newly installed packages
 - destructive removal of undeclared packages is manual-only via `dots-brew cleanup`
 - cleanup uses the audit's untracked requested formulae and casks; intentional exclusions and dependency-only installs are retained
 - `chezmoi` is intentionally left unmanaged by Brewfiles because bootstrap installs it separately
@@ -155,6 +172,7 @@ dots-health
 Stable keys in `dots-debug --json`:
 - `active_profile`
 - `active_provider`
+- `machine_preset`
 - `selected_work_contexts`
 - `override_file`
 - `env_overrides`
@@ -172,12 +190,13 @@ dots-diff
 dots-edit
 dots-debug --json
 dots-profile
-dots-brew update
 dots-brew plan
 dots-brew cleanup --dry-run
 dots-brew status
 dots-brew audit --missing
 ```
+
+When you intentionally want package upgrades, run `dots-brew update` separately.
 
 See [docs/APPLY-SAFETY.md](docs/APPLY-SAFETY.md) for selective apply,
 target-side edit handling, and validation commands.
@@ -190,6 +209,8 @@ python3 -m unittest discover -s tests -v
 
 These use isolated fixtures and mocked package commands. They do not install or
 remove packages or change your home configuration.
+GitHub Actions runs the same suite on macOS for pushes to `main` and pull requests,
+including both machine presets, both identity profiles, optional toggles, and bootstrap safety.
 
 ## Optional Integrations
 
@@ -201,6 +222,10 @@ These never block baseline bootstrap:
 - 1Password SSH public key export
 
 If a dependency or secret is missing, bootstrap logs a warning and continues.
+Integration flags govern hook execution, shell initialization, and relevant health
+checks. Disabling an integration does not uninstall software, delete keys, or clear
+environment variables inherited from machine-local startup files. See
+[MULTI-MACHINE.md](docs/MULTI-MACHINE.md) for individual flag behavior.
 
 ## Local Work Contexts
 

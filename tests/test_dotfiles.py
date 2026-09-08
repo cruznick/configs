@@ -17,6 +17,7 @@ import unittest
 REPO = Path(__file__).resolve().parents[1]
 CHEZMOI = shutil.which("chezmoi")
 BASH = shutil.which("bash")
+ZSH = shutil.which("zsh")
 ASDF_HOOK = ".chezmoiscripts/run_onchange_20-setup-asdf.sh.tmpl"
 
 
@@ -39,6 +40,8 @@ with (root / "commands.jsonl").open("a") as log:
     log.write(json.dumps(record) + "\n")
 
 if name == "chezmoi":
+    if args[:1] == ["status"] and state.get("skip_chezmoi_status"):
+        sys.exit(0)
     prefix = '{{ $fixture := deepCopy . }}{{ $_ := set $fixture.chezmoi "homeDir" ' + json.dumps(str(root / "home")) + ' }}{{ with $fixture }}'
     args = [prefix + arg + '{{ end }}' if arg.startswith('{{') else arg for arg in args]
     sys.exit(subprocess.call([os.environ["DOTFILES_TEST_CHEZMOI"], "--config", str(root / "config.toml"), "--persistent-state", str(root / "chezmoi.state"), *args]))
@@ -51,6 +54,12 @@ elif name == "brew":
         print("\n".join(state["formulae"]))
     elif args == ["list", "--cask"]:
         print("\n".join(state["casks"]))
+    elif args[:2] in (["bundle", "install"], ["bundle", "check"]):
+        sys.exit(state.get("bundle_failure", 0))
+    elif args == ["update"]:
+        pass
+    elif args == ["--prefix"]:
+        print(root / "brew-prefix")
     elif len(args) > 3 and args[:3] in (["uninstall", "--formula", "--"], ["uninstall", "--cask", "--"]):
         if os.environ.get("HOMEBREW_NO_AUTOREMOVE") != "1":
             raise SystemExit("Uninstall could remove packages outside the preview")
@@ -81,9 +90,9 @@ class DotfilesTests(unittest.TestCase):
         self.root = Path(self.temp.name).resolve()
         self.source = self.root / "source"
         self.source.mkdir()
-        for directory in (".chezmoitemplates", ".chezmoiscripts", "profiles", "homebrew", "bin"):
+        for directory in (".chezmoitemplates", ".chezmoiscripts", "profiles", "homebrew", "bin", "dot_ssh", "dot_config"):
             shutil.copytree(REPO / directory, self.source / directory)
-        for name in ("dot_tool-versions", "dot_zshrc.tmpl", "dot_gitconfig.tmpl", ".chezmoiignore"):
+        for name in ("dot_tool-versions", "dot_zshrc.tmpl", "dot_gitconfig.tmpl", ".chezmoiignore", "install.sh"):
             shutil.copy2(REPO / name, self.source / name)
         self.home = self.root / "home"
         self.home.mkdir()
@@ -111,7 +120,7 @@ class DotfilesTests(unittest.TestCase):
             command.write_text(f"#!{sys.executable}\n" + COMMAND_DOUBLE)
             command.chmod(0o755)
         self.env = os.environ.copy()
-        for name in ("DOTFILES_PROFILE", "DOTFILES_PROVIDER"):
+        for name in ("DOTFILES_PROFILE", "DOTFILES_PROVIDER", "DOTFILES_MACHINE_PRESET"):
             self.env.pop(name, None)
         self.env.update(
             PATH=str(mock_bin) + os.pathsep + self.env["PATH"],
@@ -164,7 +173,8 @@ class DotfilesTests(unittest.TestCase):
                 inside = json.loads(self.render(name, cwd=self.source))
                 outside = json.loads(self.render(name))
                 self.assertEqual(inside, outside)
-                self.assertTrue(outside["optional_integrations"]["homebrew_work"])
+                # Machine capability presets override identity-profile flags.
+                self.assertFalse(outside["optional_integrations"]["homebrew_work"])
                 if template == "effective-config":
                     self.assertEqual(outside["identity"]["git_name"], "Fixture User")
         self.assertIn('name  = "Fixture User"', self.render("dot_gitconfig.tmpl"))
@@ -271,6 +281,274 @@ class DotfilesTests(unittest.TestCase):
         result = self.run_command([BASH], input=self.render(ASDF_HOOK))
         self.assertIn("disabled", result.stdout)
         self.assertEqual(self.calls("asdf"), [])
+
+    def test_disabled_zinit_skips_installation_and_shell_initialization(self):
+        (self.contexts.parent / "overrides.toml").write_text("[optional_integrations]\nzinit = false\n")
+        result = self.run_command([BASH], input=self.render(".chezmoiscripts/run_onchange_15-install-zinit.sh.tmpl"))
+        self.assertIn("disabled", result.stdout)
+        self.assertNotIn("source \"${ZINIT_HOME}/zinit.zsh\"", self.render("dot_zshrc.tmpl"))
+        self.assertNotIn("zinit light", self.render("dot_zshrc.tmpl"))
+
+    def test_disabled_integrations_do_not_activate_shell_or_export_keys(self):
+        (self.contexts.parent / "overrides.toml").write_text(
+            "[optional_integrations]\nasdf = false\nonepassword = false\n"
+        )
+        shell = self.render("dot_zshrc.tmpl")
+        self.assertNotIn("export ASDF_DATA_DIR", shell)
+        self.assertNotIn("export SSH_AUTH_SOCK", shell)
+        self.assertNotIn("_auto_op_signin", shell)
+        result = self.run_command([BASH], input=self.render(".chezmoiscripts/run_onchange_30-export-ssh-keys.sh.tmpl"))
+        self.assertIn("disabled", result.stdout)
+
+    def test_brew_core_toggle_does_not_disable_other_groups(self):
+        self.configure_brewfile()
+        (self.contexts.parent / "overrides.toml").write_text(
+            "[optional_integrations]\nhomebrew_core = false\nhomebrew_dev = true\n"
+        )
+        self.run_command([BASH], input=self.render(".chezmoiscripts/run_onchange_10-install-brew.sh.tmpl"))
+        self.assertTrue(any(call["args"][:2] == ["bundle", "install"] for call in self.calls("brew")))
+
+    def test_all_brew_groups_disabled_skips_package_commands(self):
+        (self.contexts.parent / "overrides.toml").write_text(
+            "[optional_integrations]\n" + "\n".join(
+                f"homebrew_{group} = false" for group in ("core", "dev", "apps", "extras", "work")
+            ) + "\n"
+        )
+        result = self.run_command([BASH], input=self.render(".chezmoiscripts/run_onchange_10-install-brew.sh.tmpl"))
+        self.assertIn("all Homebrew groups are disabled", result.stdout)
+        self.assertEqual(self.calls("brew"), [])
+
+    def test_preset_and_identity_matrix(self):
+        for preset in ("mac-dev", "mac-minimal"):
+            for profile in ("personal", "work"):
+                with self.subTest(preset=preset, profile=profile):
+                    (self.contexts.parent / "overrides.toml").write_text(
+                        f'machine_preset = "{preset}"\nprofile = "{profile}"\n'
+                    )
+                    config = json.loads(self.render(".chezmoitemplates/effective-config.json.tmpl"))
+                    brew_config = json.loads(self.render(".chezmoitemplates/homebrew-config.json.tmpl"))
+                    self.assertEqual(config["active_profile"], profile)
+                    self.assertEqual(config["machine_preset"], preset)
+                    self.assertEqual(config["optional_integrations"], brew_config["optional_integrations"])
+                    options = config["optional_integrations"]
+                    self.assertTrue(options["homebrew_core"])
+                    self.assertFalse(options["homebrew_work"])
+                    self.assertEqual(options["asdf"], preset == "mac-dev")
+                    self.assertEqual(options["homebrew_apps"], preset == "mac-dev")
+                    if preset == "mac-minimal":
+                        self.assertNotIn('cask "', self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl"))
+                        gitconfig = self.render("dot_gitconfig.tmpl")
+                        self.assertNotIn("external = difft", gitconfig)
+                        self.assertNotIn("op-ssh-sign", gitconfig)
+
+    def test_machine_local_overrides_and_environment_precedence(self):
+        (self.contexts.parent / "overrides.toml").write_text(
+            'machine_preset = "mac-minimal"\nprofile = "work"\nprovider = "gl"\n'
+            '[optional_integrations]\nhomebrew_work = true\nzinit = false\n'
+        )
+        config = json.loads(self.render(".chezmoitemplates/effective-config.json.tmpl"))
+        self.assertEqual(config["active_provider"], "gl")
+        self.assertTrue(config["optional_integrations"]["homebrew_work"])
+        self.assertFalse(config["optional_integrations"]["zinit"])
+        self.env.update(DOTFILES_MACHINE_PRESET="mac-dev", DOTFILES_PROFILE="personal", DOTFILES_PROVIDER="gh")
+        config = json.loads(self.render(".chezmoitemplates/effective-config.json.tmpl"))
+        self.assertEqual(config["machine_preset"], "mac-dev")
+        self.assertEqual(config["active_profile"], "personal")
+        self.assertEqual(config["active_provider"], "gh")
+        self.assertTrue(config["optional_integrations"]["asdf"])
+        self.assertFalse(config["optional_integrations"]["zinit"])
+        self.assertEqual(config["env_overrides"]["DOTFILES_MACHINE_PRESET"], "mac-dev")
+
+    def test_old_overrides_default_to_dev_preset(self):
+        (self.contexts.parent / "overrides.toml").write_text('profile = "personal"\n')
+        config = json.loads(self.render(".chezmoitemplates/effective-config.json.tmpl"))
+        self.assertEqual(config["machine_preset"], "mac-dev")
+        self.assertTrue(config["optional_integrations"]["asdf"])
+
+    def test_invalid_selection_fails_instead_of_silently_applying_defaults(self):
+        for key in ("profile", "provider", "machine_preset"):
+            with self.subTest(key=key):
+                (self.contexts.parent / "overrides.toml").write_text(f'{key} = "invalid"\n')
+                with self.assertRaises(AssertionError):
+                    self.render(".chezmoitemplates/effective-config.json.tmpl")
+
+    def test_homebrew_render_does_not_parse_private_work_contexts(self):
+        (self.contexts / "broken.toml").write_text("not valid [ toml")
+        self.assertIn('brew "git"', self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl"))
+        with self.assertRaises(AssertionError):
+            self.render(".chezmoitemplates/effective-config.json.tmpl")
+
+    def test_sync_and_plan_do_not_request_upgrades(self):
+        self.brew("sync")
+        result = self.brew("plan")
+        self.assertIn("No missing packages", result.stdout)
+        commands = [call["args"] for call in self.calls("brew")]
+        self.assertEqual(len(commands), 2)
+        self.assertEqual(commands[0][:3], ["bundle", "install", "--no-upgrade"])
+        self.assertEqual(commands[1][:3], ["bundle", "check", "--no-upgrade"])
+
+    def test_update_upgrades_only_the_active_brewfile(self):
+        self.brew("update")
+        commands = [call["args"] for call in self.calls("brew")]
+        self.assertEqual(commands[0], ["update"])
+        self.assertEqual(commands[1][:3], ["bundle", "install", "--upgrade"])
+        self.assertEqual(len(commands), 2)
+
+    def test_plan_does_not_claim_a_failed_check_requires_package_changes(self):
+        self.state["bundle_failure"] = 1
+        self.save_state()
+        result = self.brew("plan")
+        self.assertIn("Homebrew did not confirm", result.stdout)
+        self.assertNotIn("Changes are needed", result.stdout)
+        self.assertTrue(all(call["args"][:2] == ["bundle", "check"] for call in self.calls("brew")))
+
+    def test_brew_apply_hook_installs_without_upgrade_or_update(self):
+        self.run_command([BASH], input=self.render(".chezmoiscripts/run_onchange_10-install-brew.sh.tmpl"))
+        commands = [call["args"] for call in self.calls("brew")]
+        self.assertEqual(commands[0][:3], ["bundle", "install", "--no-upgrade"])
+        self.assertNotIn(["update"], commands)
+        self.assertNotIn(["upgrade"], commands)
+
+    def test_disabled_onepassword_does_not_use_existing_key_selectors(self):
+        selectors = self.home / ".ssh/signing-pubs"
+        selectors.mkdir(parents=True)
+        (selectors / "personal-gh.pub").write_text("fixture public key")
+        (self.contexts.parent / "overrides.toml").write_text('[optional_integrations]\nonepassword = false\n')
+        self.assertNotIn("signingkey =", self.render("dot_gitconfig.tmpl"))
+        self.assertNotIn("IdentityFile", self.render("dot_ssh/config.tmpl"))
+        self.assertIn(".config/1Password/**", self.render(".chezmoiignore"))
+        (self.contexts / "fixture.toml").write_text(
+            '[context]\nslug = "fixture"\n[git]\nsigning_key = "~/.ssh/signing-pubs/personal-gh.pub"\n'
+        )
+        work_hook = self.render(".chezmoiscripts/run_onchange_40-generate-work-gitconfigs.sh.tmpl")
+        self.assertNotIn("signingkey =", work_hook)
+        self.assertIn("gpgsign = false", work_hook)
+
+    def test_health_skips_disabled_asdf_and_brew_groups(self):
+        (self.contexts.parent / "overrides.toml").write_text(
+            'machine_preset = "mac-minimal"\n[optional_integrations]\nhomebrew_core = false\n'
+        )
+        self.state["skip_chezmoi_status"] = True
+        self.save_state()
+        result = self.run_command([BASH, str(self.source / "bin/executable_dots-health")], check=False)
+        self.assertIn("asdf is disabled; runtime and shim checks skipped", result.stdout)
+        self.assertIn("all Homebrew groups are disabled; brew checks skipped", result.stdout)
+        self.assertEqual(self.calls("asdf"), [])
+        self.assertEqual(self.calls("brew"), [])
+
+    def bootstrap(self, *args, check=True):
+        # Source the actual bootstrap and mock only machine/network-facing commands.
+        # HOME remains unchanged; helpers receive explicit fixture destinations.
+        script = r'''
+source "$1"
+shift
+OVERRIDES_DIR="$DOTFILES_TEST_ROOT/home/.config/dotfiles"
+OVERRIDES_FILE="$OVERRIDES_DIR/overrides.toml"
+record() { printf '%s\n' "$*" >> "$DOTFILES_TEST_ROOT/bootstrap.log"; }
+ensure_curl() { :; }
+install_homebrew_if_needed() { :; }
+install_chezmoi() { :; }
+find_local_source_candidate() { printf '%s\n' "$DOTFILES_TEST_ROOT/source"; }
+chezmoi() {
+  if [[ "$1" == execute-template ]]; then command chezmoi "$@"; return; fi
+  [[ -f "$OVERRIDES_FILE" ]] || return 99
+  record "chezmoi $*"
+  case "$1" in
+    source-path) [[ "${DOTFILES_TEST_EXISTING_SOURCE:-}" != 1 ]] || printf '%s\n' "$DOTFILES_TEST_ROOT/source" ;;
+    init|apply) : ;;
+    *) return 98 ;;
+  esac
+}
+git() {
+  record "git $*"
+  [[ "$1" == -C ]] || return 98
+  shift 2
+  case "$1" in
+    rev-parse) : ;;
+    config) printf '%s\n' https://github.com/cruznick/configs.git ;;
+    status) [[ "${DOTFILES_TEST_DIRTY:-}" != 1 ]] || printf '%s\n' ' M fixture' ;;
+    pull) [[ "$2" == --ff-only && -f "$OVERRIDES_FILE" ]] ;;
+    *) return 98 ;;
+  esac
+}
+main "$@"
+'''
+        return self.run_command([BASH, "-c", script, "fixture", str(self.source / "install.sh"), *args], check=check)
+
+    def test_bootstrap_seeds_preset_before_init_and_apply(self):
+        self.bootstrap("--preset", "mac-minimal")
+        overrides = (self.contexts.parent / "overrides.toml").read_text()
+        self.assertIn('machine_preset = "mac-minimal"', overrides)
+        commands = (self.root / "bootstrap.log").read_text().splitlines()
+        self.assertTrue(any(command.startswith("chezmoi init") for command in commands))
+        self.assertEqual(commands[-1], "chezmoi apply")
+        config = json.loads(self.render(".chezmoitemplates/effective-config.json.tmpl"))
+        self.assertFalse(config["optional_integrations"]["asdf"])
+
+    def test_bootstrap_preserves_overrides_and_updates_source_without_implicit_apply(self):
+        existing = 'machine_preset = "mac-minimal"\nprofile = "work"\n# Keep this comment.\n'
+        (self.contexts.parent / "overrides.toml").write_text(existing)
+        (self.source / ".git").mkdir()
+        self.env["DOTFILES_TEST_EXISTING_SOURCE"] = "1"
+        self.bootstrap()
+        self.assertEqual((self.contexts.parent / "overrides.toml").read_text(), existing)
+        commands = (self.root / "bootstrap.log").read_text().splitlines()
+        self.assertTrue(any(command.endswith("pull --ff-only") for command in commands))
+        self.assertEqual(commands.count("chezmoi apply"), 1)
+        self.assertNotIn("chezmoi update", commands)
+
+    def test_bootstrap_rejects_conflicting_preset_without_overwriting(self):
+        existing = 'machine_preset = "mac-minimal"\n'
+        (self.contexts.parent / "overrides.toml").write_text(existing)
+        result = self.bootstrap("--preset", "mac-dev", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no overrides were replaced", result.stderr)
+        self.assertEqual((self.contexts.parent / "overrides.toml").read_text(), existing)
+        self.assertFalse((self.root / "bootstrap.log").exists())
+
+    def test_bootstrap_rejects_invalid_preset_and_dirty_source(self):
+        result = self.bootstrap("--preset", "unknown", check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.contexts.parent / "overrides.toml").exists())
+        (self.source / ".git").mkdir()
+        self.env.update(DOTFILES_TEST_EXISTING_SOURCE="1", DOTFILES_TEST_DIRTY="1")
+        result = self.bootstrap(check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Commit or stash", result.stderr)
+        commands = (self.root / "bootstrap.log").read_text()
+        self.assertNotIn("pull --ff-only", commands)
+        self.assertNotIn("chezmoi apply", commands)
+
+    def test_bootstrap_runs_downloaded_bash_c_and_file_entrypoints(self):
+        # Keep the real execution guard; replace only main's side effects.
+        script = (self.source / "install.sh").read_text()
+        guard = script.rindex('\nif [[ -z "${BASH_SOURCE[0]:-}"')
+        safe_script = script[:guard] + '\nmain() { printf "called:%s\\n" "$*"; }\n' + script[guard:]
+        result = self.run_command(["/bin/bash", "-c", safe_script, "--", "--preset", "mac-minimal"])
+        self.assertEqual(result.stdout, "called:--preset mac-minimal\n")
+        fixture = self.root / "bootstrap-entrypoint.sh"
+        fixture.write_text(safe_script)
+        result = self.run_command(["/bin/bash", str(fixture), "--preset", "mac-dev"])
+        self.assertEqual(result.stdout, "called:--preset mac-dev\n")
+
+    def test_bootstrap_cli_preset_wins_over_environment(self):
+        self.env["DOTFILES_MACHINE_PRESET"] = "mac-dev"
+        self.bootstrap("--preset=mac-minimal")
+        self.assertIn('machine_preset = "mac-minimal"', (self.contexts.parent / "overrides.toml").read_text())
+
+    @unittest.skipUnless(ZSH, "requires zsh")
+    def test_scripts_and_rendered_templates_have_valid_syntax(self):
+        for script in [self.source / "install.sh", *self.source.glob("bin/executable_*")]:
+            if script.suffix != ".tmpl":
+                with self.subTest(script=script.name):
+                    self.run_command([BASH, "-n", str(script)])
+        templates = [*self.source.glob(".chezmoiscripts/*.tmpl"), *self.source.glob("bin/*.tmpl")]
+        for preset in ("mac-dev", "mac-minimal"):
+            self.env["DOTFILES_MACHINE_PRESET"] = preset
+            for template in templates:
+                with self.subTest(template=template.name, preset=preset):
+                    self.run_command([BASH, "-n"], input=self.render(str(template.relative_to(self.source))))
+            self.run_command([ZSH, "-n"], input=self.render("dot_zshrc.tmpl"))
 
 
 if __name__ == "__main__":

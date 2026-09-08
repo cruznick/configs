@@ -1,5 +1,6 @@
 {{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
 {{- $identity := $cfg.identity | default dict -}}
+{{- $optional := $cfg.optional_integrations -}}
 # =============================================================================
 # Benjamin's .zshrc — managed by chezmoi
 # Edit source: ~/repos/personal/gh/configs/dot_zshrc.tmpl
@@ -9,8 +10,14 @@
 # =============================================================================
 # BASIC ENV
 # =============================================================================
-export EDITOR="code"
-export VISUAL="code"
+if command -v code >/dev/null; then
+  export EDITOR="code"
+elif command -v nvim >/dev/null; then
+  export EDITOR="nvim"
+else
+  export EDITOR="vi"
+fi
+export VISUAL="$EDITOR"
 export DOTFILES_ACTIVE_PROFILE="{{ $cfg.active_profile }}"
 export DOTFILES_ACTIVE_PROVIDER="{{ $cfg.active_provider }}"
 
@@ -44,27 +51,33 @@ fi
 # =============================================================================
 # ZINIT
 # =============================================================================
+{{ if $optional.zinit -}}
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
-source "${ZINIT_HOME}/zinit.zsh"
+if [[ -r "${ZINIT_HOME}/zinit.zsh" ]]; then
+  source "${ZINIT_HOME}/zinit.zsh"
 
-zinit light zsh-users/zsh-syntax-highlighting
-zinit light zsh-users/zsh-completions
-zinit light zsh-users/zsh-autosuggestions
-zinit light Aloxaf/fzf-tab
+  zinit light zsh-users/zsh-syntax-highlighting
+  zinit light zsh-users/zsh-completions
+  zinit light zsh-users/zsh-autosuggestions
+  zinit light Aloxaf/fzf-tab
 
-zinit snippet OMZL::git.zsh
-zinit snippet OMZP::git
-zinit snippet OMZP::sudo
-zinit snippet OMZP::vscode
-zinit snippet OMZP::aws
-zinit snippet OMZP::kubectl
-zinit snippet OMZP::kubectx
-zinit snippet OMZP::docker
-zinit snippet OMZP::colored-man-pages
-zinit snippet OMZP::command-not-found
+  zinit snippet OMZL::git.zsh
+  zinit snippet OMZP::git
+  zinit snippet OMZP::sudo
+  zinit snippet OMZP::vscode
+  zinit snippet OMZP::aws
+  zinit snippet OMZP::kubectl
+  zinit snippet OMZP::kubectx
+  zinit snippet OMZP::docker
+  zinit snippet OMZP::colored-man-pages
+  zinit snippet OMZP::command-not-found
+fi
+{{ end -}}
 
 autoload -Uz compinit && compinit
-zinit cdreplay -q
+{{ if $optional.zinit -}}
+(( $+functions[zinit] )) && zinit cdreplay -q
+{{ end -}}
 
 # =============================================================================
 # PROMPT
@@ -188,10 +201,12 @@ alias d='dirs -v'
 # =============================================================================
 # ASDF (version manager — terraform, kubectl, nodejs, python, golang managed here)
 # =============================================================================
+{{ if $optional.asdf -}}
 # asdf 0.16+ is an executable; no shell initializer is needed.
 export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
 # Promote inherited shims ahead of Homebrew and remove duplicates.
 path=("$ASDF_DATA_DIR/shims" "${(@)path:#$ASDF_DATA_DIR/shims}")
+{{ end -}}
 
 # =============================================================================
 # NODE / PNPM
@@ -212,6 +227,7 @@ command -v uv >/dev/null && eval "$(uv generate-shell-completion zsh)" 2>/dev/nu
 # =============================================================================
 # 1PASSWORD SSH AGENT
 # =============================================================================
+{{ if $optional.onepassword -}}
 if [[ -S "$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock" ]]; then
   export SSH_AUTH_SOCK="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
 fi
@@ -239,6 +255,7 @@ if command -v op >/dev/null; then
   autoload -Uz add-zsh-hook
   add-zsh-hook chpwd _auto_op_signin
 fi
+{{ end -}}
 
 # =============================================================================
 # GLAB helpers

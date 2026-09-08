@@ -5,6 +5,13 @@ Terraform, kubectl, and Helm. Homebrew installs the asdf executable through the
 dev Brewfile group. This configuration supports asdf 0.16 and later; the old
 `asdf.sh` shell initializer is no longer used.
 
+All six repo selections are concrete versions. Node is pinned to `24.14.0`, the
+version used on the existing Mac when introducing presets, instead of the moving
+`lts` selector. This is a reproducibility baseline, not a claim that it is the
+latest release. Future upgrades are deliberate edits to `dot_tool-versions`.
+An existing `lts` installation may need the exact-version install on next apply;
+old installs are not automatically removed.
+
 ## Synchronization
 
 On macOS, `.chezmoiscripts/run_onchange_20-setup-asdf.sh.tmpl` runs after chezmoi
@@ -24,8 +31,9 @@ To defer automatic asdf setup on a machine, set:
 asdf = false
 ```
 
-This controls the installation hook. It does not uninstall tools or change the
-shell's shim support. Linux continues to skip this macOS setup hook.
+This skips the installation hook, managed shell shim setup, and asdf health
+checks. It does not uninstall tools or remove inherited PATH entries. `mac-minimal`
+sets it to false automatically. Linux continues to skip this macOS setup hook.
 
 ## Failures And Retries
 
@@ -60,5 +68,5 @@ Homebrew and removes duplicate copies of that shim directory, including when it
 was inherited from the parent shell. It does not source the old asdf initializer.
 
 `dots-health` verifies all six shim paths and checks that each repo-declared
-version is installed. Project-specific `.tool-versions` files still control the
+version is installed when asdf is enabled. Project-specific `.tool-versions` files still control the
 selected versions within those projects.
