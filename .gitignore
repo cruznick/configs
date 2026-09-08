@@ -8,3 +8,6 @@
 # Per-session secrets — local only
 .secrets.d/
 .claude/
+
+# Python regression test cache
+__pycache__/

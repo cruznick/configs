@@ -10,6 +10,10 @@ font/**
 docs/**
 docs/
 
+# Regression checks run from the source repo, never deployed to the home directory.
+tests/
+tests/**
+
 # Manual app-export artifacts — reference only, never deployed by chezmoi
 apps/**
 apps/

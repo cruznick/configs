@@ -62,8 +62,12 @@ op_vault = ""
 Notes:
 - local work contexts are discovered from `~/.config/dotfiles/work-contexts/*.toml`
 - `work_contexts = [...]` is an optional local filter
+- `[context].enabled = false` excludes a context even when the filter names it
 - work contexts affect only Git and direnv-related behavior
 - `[identity].op_vault` is machine-local and may be needed for repo-managed 1Password SSH key export/pinning
+
+Profile files resolve against the chezmoi source directory. Rendering and applying
+the configuration work from any current directory.
 
 ## Manual App Exports
 
@@ -119,6 +123,7 @@ Workflows:
 - Update declared brew state: `dots-brew update`
 - Install/sync declared brew state: `dots-brew sync`
 - Preview sync work: `dots-brew plan`
+- Preview removal candidates without changing packages: `dots-brew cleanup --dry-run`
 - Cleanup undeclared packages explicitly: `dots-brew cleanup`
 - Show active groups and drift summary: `dots-brew status`
 - Audit drift: `dots-brew audit` or `dots-brew audit --missing`
@@ -130,10 +135,14 @@ Operational rule:
 - direct `brew install` is fine for testing, but persistent state must be added to `homebrew/Brewfile.*`
 - `chezmoi apply` and `dots-brew sync` do not uninstall undeclared packages
 - destructive removal of undeclared packages is manual-only via `dots-brew cleanup`
+- cleanup uses the audit's untracked requested formulae and casks; intentional exclusions and dependency-only installs are retained
 - `chezmoi` is intentionally left unmanaged by Brewfiles because bootstrap installs it separately
 - Version-pinned runtimes and CLIs (`nodejs`, `python`, `golang`, `terraform`, `kubectl`, `helm`) are managed by asdf, not Homebrew.
 
 See [docs/HOMEBREW.md](docs/HOMEBREW.md).
+
+The asdf setup hook supports the executable-based asdf (0.16+) and reruns when
+`dot_tool-versions` changes. See [docs/ASDF.md](docs/ASDF.md) for setup and retries.
 
 ## Debugging
 
@@ -165,13 +174,22 @@ dots-debug --json
 dots-profile
 dots-brew update
 dots-brew plan
-dots-brew cleanup
+dots-brew cleanup --dry-run
 dots-brew status
 dots-brew audit --missing
 ```
 
 See [docs/APPLY-SAFETY.md](docs/APPLY-SAFETY.md) for selective apply,
 target-side edit handling, and validation commands.
+
+Run regression checks before committing changes:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+These use isolated fixtures and mocked package commands. They do not install or
+remove packages or change your home configuration.
 
 ## Optional Integrations
 

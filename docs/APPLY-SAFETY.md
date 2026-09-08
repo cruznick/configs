@@ -87,11 +87,13 @@ Run this after edits and before pushing:
 
 ```bash
 git diff --check
+python3 -m unittest discover -s tests -v
 chezmoi execute-template --source ~/repos/personal/gh/configs '{{ includeTemplate "dot_gitconfig.tmpl" . }}' >/tmp/rendered-gitconfig
 git config --file /tmp/rendered-gitconfig --list >/dev/null
 chezmoi execute-template --source ~/repos/personal/gh/configs '{{ includeTemplate ".chezmoitemplates/homebrew-active-brewfile.tmpl" . }}' >/tmp/rendered-brewfile
 dots-brew status
 dots-brew plan
+dots-brew cleanup --dry-run
 chezmoi status --source ~/repos/personal/gh/configs
 ```
 
@@ -104,3 +106,19 @@ dots-health
 Use `dots-health --fast` when you want to skip the slower Homebrew dependency
 check. The command is read-only; it does not apply dotfiles, install packages,
 upgrade packages, or run cleanup.
+
+The health check compares config rendered inside and outside the source repo,
+validates both the desired and installed zsh configuration, and checks shim
+resolution and installation of all six declared asdf tools. Expected pending
+changes or an unpushed commit still cause its drift checks to report failures.
+
+The regression suite requires Python 3.8+, chezmoi, Bash, and jq. It renders real
+templates in temporary fixtures and intercepts every asdf, corepack, and Homebrew
+call. Coverage includes directory-independent profiles, disabled work contexts,
+cleanup preview/confirmation/failures, protected packages, formula/cask name
+collisions, and asdf installation from the home version file. Tests do not change
+your real home directory, installed packages, or chezmoi state.
+
+The asdf hook changed from `run_once_20` to `run_onchange_20`. Expect it to run on
+the first full apply after this update and again after `dot_tool-versions` edits.
+Review [ASDF.md](ASDF.md) before applying if tool downloads should be deferred.

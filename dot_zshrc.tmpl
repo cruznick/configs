@@ -188,15 +188,10 @@ alias d='dirs -v'
 # =============================================================================
 # ASDF (version manager — terraform, kubectl, nodejs, python, golang managed here)
 # =============================================================================
-for _asdf_init in \
-  "/opt/homebrew/opt/asdf/libexec/asdf.sh" \
-  "/usr/local/opt/asdf/libexec/asdf.sh" \
-  "$HOME/.asdf/asdf.sh"; do
-  [[ -f "$_asdf_init" ]] && source "$_asdf_init" && break
-done
-unset _asdf_init
+# asdf 0.16+ is an executable; no shell initializer is needed.
 export ASDF_DATA_DIR="${ASDF_DATA_DIR:-$HOME/.asdf}"
-path_prepend "$ASDF_DATA_DIR/shims"
+# Promote inherited shims ahead of Homebrew and remove duplicates.
+path=("$ASDF_DATA_DIR/shims" "${(@)path:#$ASDF_DATA_DIR/shims}")
 
 # =============================================================================
 # NODE / PNPM

@@ -9,7 +9,7 @@ Usage:
   dots-brew sync
   dots-brew update
   dots-brew plan
-  dots-brew cleanup [--force]
+  dots-brew cleanup [--dry-run | --force]
   dots-brew status
   dots-brew audit [--missing]
   dots-brew groups
@@ -19,7 +19,7 @@ Commands:
   sync     install the active Brewfile with brew bundle
   update   brew update && brew upgrade && sync declared Brewfiles
   plan     dry-run the install/upgrade work sync would perform
-  cleanup  explicitly uninstall undeclared Homebrew packages from the active Brewfile
+  cleanup  preview/confirm removal of untracked requested formulae and casks
   status   show active groups and current drift summary
   audit    compare installed packages against the active Brewfile
   groups   show repo-tracked Brewfile groups and local enablement
@@ -136,26 +136,48 @@ status_report() {
   echo "  destructive cleanup: dots-brew cleanup"
 }
 
-cleanup_with_brewfile() {
-  local file="$1"
-  local force="${2:-false}"
-  local reply=""
+cleanup_packages() {
+  local mode="${1:-}" reply="" audit_json candidates pkg
+  local formulae=() casks=()
+
+  # The audit owns exclusions. Never turn an intentionally untracked package
+  # into a removal candidate by passing the Brewfile to bundle cleanup.
+  audit_json="$("$(audit_command)" --json)"
+  if ! jq -e '
+    [.untracked_formulae, .untracked_casks]
+    | all(.[]; type == "array" and all(.[]; type == "string" and test("^[A-Za-z0-9][A-Za-z0-9@+._/-]*$")))
+  ' <<<"$audit_json" >/dev/null; then
+    echo "error: audit did not return valid cleanup candidates; apply both brew helpers together" >&2
+    return 1
+  fi
+  candidates="$(jq -r '.untracked_formulae[]' <<<"$audit_json")"
+  while IFS= read -r pkg; do
+    [[ -z "$pkg" ]] || formulae+=("$pkg")
+  done <<<"$candidates"
+  candidates="$(jq -r '.untracked_casks[]' <<<"$audit_json")"
+  while IFS= read -r pkg; do
+    [[ -z "$pkg" ]] || casks+=("$pkg")
+  done <<<"$candidates"
 
   echo "dots-brew cleanup"
   echo ""
-  echo "This will uninstall Homebrew formulae and casks not declared in the active Brewfile."
-  echo "It is intentionally not run by chezmoi apply, bootstrap, or dots-brew sync."
-  echo ""
-  echo "Preview:"
-  if brew bundle cleanup --file "$file"; then
-    echo "No undeclared packages would be removed."
+  echo "Candidates from the audit (protected packages and dependency-only installs are retained):"
+  if [[ ${#formulae[@]} -eq 0 && ${#casks[@]} -eq 0 ]]; then
+    echo "No packages would be removed."
     return 0
   fi
+  if [[ ${#formulae[@]} -gt 0 ]]; then
+    printf '  formula: %s\n' "${formulae[@]}"
+  fi
+  if [[ ${#casks[@]} -gt 0 ]]; then
+    printf '  cask: %s\n' "${casks[@]}"
+  fi
+  [[ "$mode" != "--dry-run" ]] || return 0
 
-  if [[ "$force" != "true" ]]; then
+  if [[ "$mode" != "--force" ]]; then
     echo ""
     printf "Proceed with uninstall? [y/N]: "
-    read -r reply
+    read -r reply || reply=""
     case "$reply" in
       y|Y|yes|YES)
         ;;
@@ -166,11 +188,13 @@ cleanup_with_brewfile() {
     esac
   fi
 
-  brew bundle cleanup --force --file "$file"
-}
-
-cleanup_force_with_brewfile() {
-  cleanup_with_brewfile "$1" true
+  # Keep Homebrew's dependency safeguards; --force only skips our prompt.
+  if [[ ${#casks[@]} -gt 0 ]]; then
+    HOMEBREW_NO_AUTOREMOVE=1 brew uninstall --cask -- "${casks[@]}"
+  fi
+  if [[ ${#formulae[@]} -gt 0 ]]; then
+    HOMEBREW_NO_AUTOREMOVE=1 brew uninstall --formula -- "${formulae[@]}"
+  fi
 }
 
 cmd="${1:-}"
@@ -194,13 +218,14 @@ case "$cmd" in
     ;;
   cleanup)
     require_brew
-    shift || true
+    shift
+    if [[ $# -gt 1 ]]; then
+      usage >&2
+      exit 1
+    fi
     case "${1:-}" in
-      "")
-        with_brewfile cleanup_with_brewfile
-        ;;
-      --force)
-        with_brewfile cleanup_force_with_brewfile
+      ""|--dry-run|--force)
+        cleanup_packages "${1:-}"
         ;;
       *)
         usage >&2

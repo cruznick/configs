@@ -1,5 +1,7 @@
+tap "atlassian/acli"
 tap "datadog-labs/pack"
 
+brew "atlassian/acli/acli"
 brew "datadog-labs/pack/pup"
 brew "steampipe"
 
@@ -8,7 +10,7 @@ cask "okta-verify"
 cask "pritunl"
 cask "meetingbar"
 cask "claude"
-cask "claude-code"
+cask "claude-code@latest"
 cask "slack"
 cask "zoom"
 cask "cursor"

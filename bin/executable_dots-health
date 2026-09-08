@@ -140,8 +140,11 @@ fi
 section "rendered templates"
 rendered_gitconfig="$(mktemp "${TMPDIR:-/tmp}/dots-health-gitconfig.XXXXXX")"
 rendered_brewfile="$(mktemp "${TMPDIR:-/tmp}/dots-health-brewfile.XXXXXX")"
+rendered_zshrc="$(mktemp "${TMPDIR:-/tmp}/dots-health-zshrc.XXXXXX")"
+config_check_dir="$(mktemp -d "${TMPDIR:-/tmp}/dots-health-cwd.XXXXXX")"
 cleanup() {
-  rm -f "$rendered_gitconfig" "$rendered_brewfile"
+  rm -f "$rendered_gitconfig" "$rendered_brewfile" "$rendered_zshrc"
+  rmdir "$config_check_dir"
 }
 trap cleanup EXIT
 
@@ -158,8 +161,33 @@ else
   fail "active Brewfile render failed"
 fi
 
+render_config_from_directory() (
+  cd "$1"
+  "$CHEZMOI_BIN" execute-template --source "$SOURCE_DIR" \
+    '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}{{ includeTemplate ".chezmoitemplates/homebrew-config.json.tmpl" . }}'
+)
+
+source_config=""
+outside_config=""
+if run_capture source_config render_config_from_directory "$SOURCE_DIR" \
+  && run_capture outside_config render_config_from_directory "$config_check_dir"; then
+  if [[ "$source_config" == "$outside_config" ]]; then
+    ok "config rendering is independent of the working directory"
+  else
+    fail "config rendering changes outside the source directory"
+  fi
+else
+  fail "config working-directory check could not render templates"
+fi
+
 section "shell syntax"
 if command -v zsh >/dev/null 2>&1; then
+  if "$CHEZMOI_BIN" execute-template --source "$SOURCE_DIR" '{{ includeTemplate "dot_zshrc.tmpl" . }}' >"$rendered_zshrc" \
+    && zsh -n "$rendered_zshrc"; then
+    ok "rendered zshrc parses"
+  else
+    fail "rendered zshrc has template or syntax errors"
+  fi
   if [[ -f "$HOME/.zshrc" ]]; then
     if zsh -n "$HOME/.zshrc"; then
       ok "~/.zshrc parses"
@@ -200,16 +228,29 @@ else
 fi
 
 section "asdf-owned tools"
-for tool in kubectl helm terraform; do
+for tool in node python go kubectl helm terraform; do
   tool_path="$(command -v "$tool" || true)"
   if [[ -z "$tool_path" ]]; then
     fail "$tool is not on PATH"
-  elif [[ "$tool_path" == "$HOME/.asdf/shims/$tool" ]]; then
+  elif [[ "$tool_path" == "${ASDF_DATA_DIR:-$HOME/.asdf}/shims/$tool" ]]; then
     ok "$tool resolves through asdf shim"
   else
     fail "$tool resolves to $tool_path before the asdf shim"
   fi
 done
+
+if command -v asdf >/dev/null 2>&1; then
+  while read -r plugin version remainder; do
+    [[ -z "$plugin" || "$plugin" == \#* ]] && continue
+    if asdf where "$plugin" "$version" >/dev/null 2>&1; then
+      ok "asdf $plugin $version is installed"
+    else
+      fail "asdf $plugin $version is not installed"
+    fi
+  done <"$SOURCE_DIR/dot_tool-versions"
+else
+  fail "asdf is not on PATH"
+fi
 
 if [[ $RUN_BREW -eq 1 ]]; then
   section "homebrew"

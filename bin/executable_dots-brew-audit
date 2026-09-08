@@ -92,10 +92,11 @@ fi
 
 # ── Extract packages tracked in the active Brewfile ───────────────────────────
 _extract_tracked() {
-  local token
+  local kind="$1" token
   while IFS= read -r line; do
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
     if [[ "$line" =~ ^[[:space:]]*(brew|cask)[[:space:]]+\"([^\"]+)\" ]]; then
+      [[ "${BASH_REMATCH[1]}" == "$kind" ]] || continue
       token="${BASH_REMATCH[2]}"
       token="${token##*/}"
       echo "$token"
@@ -124,25 +125,30 @@ EXCLUDED_REASON["zlib"]="keg-only build dep"
 INSTALLED_FORMULAE_ON_REQUEST="$(brew list --formula --installed-on-request 2>/dev/null | sort)"
 INSTALLED_FORMULAE_ALL="$(brew list --formula 2>/dev/null | sort)"
 INSTALLED_CASKS="$(brew list --cask 2>/dev/null | sort)"
-INSTALLED_REQUESTED_ALL="$(printf '%s\n%s\n' "$INSTALLED_FORMULAE_ON_REQUEST" "$INSTALLED_CASKS" | sort -u)"
-INSTALLED_ALL="$(printf '%s\n%s\n' "$INSTALLED_FORMULAE_ALL" "$INSTALLED_CASKS" | sort -u)"
 
-TRACKED="$(_extract_tracked | sort -u)"
+TRACKED_FORMULAE="$(_extract_tracked brew | sort -u)"
+TRACKED_CASKS="$(_extract_tracked cask | sort -u)"
+TRACKED="$(printf '%s\n%s\n' "$TRACKED_FORMULAE" "$TRACKED_CASKS" | sed '/^$/d' | sort -u)"
 
 # ── Diff ──────────────────────────────────────────────────────────────────────
-UNTRACKED="$(comm -23 <(echo "$INSTALLED_REQUESTED_ALL") <(echo "$TRACKED"))"
-MISSING="$(comm -13 <(echo "$INSTALLED_ALL") <(echo "$TRACKED"))"
+UNTRACKED_FORMULAE="$(comm -23 <(echo "$INSTALLED_FORMULAE_ON_REQUEST") <(echo "$TRACKED_FORMULAE"))"
+UNTRACKED_CASKS="$(comm -23 <(echo "$INSTALLED_CASKS") <(echo "$TRACKED_CASKS"))"
+UNTRACKED="$(printf '%s\n%s\n' "$UNTRACKED_FORMULAE" "$UNTRACKED_CASKS" | sed '/^$/d' | sort -u)"
+MISSING_FORMULAE="$(comm -13 <(echo "$INSTALLED_FORMULAE_ALL") <(echo "$TRACKED_FORMULAE"))"
+MISSING_CASKS="$(comm -13 <(echo "$INSTALLED_CASKS") <(echo "$TRACKED_CASKS"))"
+MISSING="$(printf '%s\n%s\n' "$MISSING_FORMULAE" "$MISSING_CASKS" | sed '/^$/d' | sort -u)"
 
-REAL_UNTRACKED=""
+REAL_UNTRACKED_FORMULAE=""
 INTENTIONAL=""
 while IFS= read -r pkg; do
   [[ -z "$pkg" ]] && continue
   if [[ -n "${EXCLUDED_REASON[$pkg]+_}" ]]; then
     INTENTIONAL+="$pkg"$'\n'
   else
-    REAL_UNTRACKED+="$pkg"$'\n'
+    REAL_UNTRACKED_FORMULAE+="$pkg"$'\n'
   fi
-done <<< "$UNTRACKED"
+done <<< "$UNTRACKED_FORMULAE"
+REAL_UNTRACKED="$(printf '%s\n%s\n' "$REAL_UNTRACKED_FORMULAE" "$UNTRACKED_CASKS" | sed '/^$/d' | sort -u)"
 
 json_array() {
   printf '%s' "${1:-}" | jq -Rsc 'split("\n") | map(select(length > 0))'
@@ -152,6 +158,8 @@ if [[ $OUTPUT_JSON -eq 1 ]]; then
   jq -n \
     --argjson tracked "$(json_array "$TRACKED")" \
     --argjson untracked "$(json_array "$REAL_UNTRACKED")" \
+    --argjson untracked_formulae "$(json_array "$REAL_UNTRACKED_FORMULAE")" \
+    --argjson untracked_casks "$(json_array "$UNTRACKED_CASKS")" \
     --argjson intentional "$(json_array "$INTENTIONAL")" \
     --argjson missing "$(json_array "$MISSING")" \
     '{
@@ -159,6 +167,8 @@ if [[ $OUTPUT_JSON -eq 1 ]]; then
       tracked_count: ($tracked | length),
       untracked: $untracked,
       untracked_count: ($untracked | length),
+      untracked_formulae: $untracked_formulae,
+      untracked_casks: $untracked_casks,
       intentional_untracked: $intentional,
       intentional_untracked_count: ($intentional | length),
       missing: $missing,

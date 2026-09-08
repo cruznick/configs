@@ -21,6 +21,8 @@ Notes:
 - local override `work_contexts = [...]` is an optional filter over local context files
 - `profile = "work"` is only a generic support mode; concrete work identity is still path-scoped by local work contexts
 - local overrides also deep-merge into repo config, including `optional_integrations`
+- repo profile existence checks use the absolute chezmoi source directory, so configuration does not depend on the caller's current directory
+- work-context `enabled = false` is preserved, including for explicitly filtered contexts
 
 ## Repository Data Types
 
@@ -48,6 +50,14 @@ Activation:
 - machine-local enablement is controlled by `optional_integrations.homebrew_*`
 - work-context data is not used for Homebrew selection
 - normal apply/sync installs declared packages only; destructive cleanup is explicit via `dots-brew cleanup`
+- cleanup previews the audit's typed candidate lists; only untracked requested formulae and casks can be removed, and audit exclusions stay protected
+
+## asdf Tool Versions
+
+`dot_tool-versions` declares runtime and CLI versions. The macOS asdf onchange
+hook runs after files are deployed, uses the asdf executable, and runs from the
+home directory. Its rendered content includes the version file's checksum so a
+version edit triggers synchronization. See [ASDF.md](ASDF.md).
 
 ## Local Session Model
 

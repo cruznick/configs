@@ -71,7 +71,13 @@ dots-brew plan
 
 This previews install or upgrade work only. It does not perform cleanup.
 
-Explicitly remove undeclared packages:
+Preview removal candidates without changing installed packages:
+
+```bash
+dots-brew cleanup --dry-run
+```
+
+Remove the same candidates after confirmation:
 
 ```bash
 dots-brew cleanup
@@ -79,6 +85,26 @@ dots-brew cleanup
 
 This is destructive and manual-only. It is not part of bootstrap, `chezmoi apply`,
 or `dots-brew sync`.
+
+Cleanup uses the audit's `untracked_formulae` and `untracked_casks` lists. It
+removes explicitly requested formulae and installed casks absent from the active
+Brewfile. Formulae installed only as dependencies remain installed. Formula and
+cask names are compared separately, including when both have the same name.
+
+The audit's intentional formula exclusions are also protected from cleanup:
+`chezmoi`, `terraform`, `kubernetes-cli`, `helm`, `nvm`, `pyenv`, `tcl-tk`,
+`tcl-tk@8`, and `zlib`. The exclusion list lives in `bin/executable_dots-brew-audit`;
+cleanup consumes that audit instead of maintaining a second list.
+
+`dots-brew cleanup --force` skips the wrapper's confirmation only. Removal uses
+ordinary `brew uninstall` with `HOMEBREW_NO_AUTOREMOVE=1`, preserving Homebrew's
+dependency checks and limiting removal to the previewed packages. Declining the
+prompt or providing no input cancels removal. An audit or uninstall failure stops
+the command. No `brew bundle cleanup`, automatic dependency removal, tap removal,
+or trust-store reset is performed. Manage orphaned dependencies separately if
+you want to remove them.
+
+Apply `dots-brew` and `dots-brew-audit` together when upgrading these helpers.
 
 Show active groups and a drift summary:
 
@@ -135,4 +161,5 @@ installs the active Homebrew Brewfile groups on macOS.
 - Version-pinned runtimes and CLIs (`nodejs`, `python`, `golang`, `terraform`, `kubectl`, `helm`) remain managed by asdf to avoid shim conflicts.
 - `uv` remains Homebrew-managed; asdf owns the Python runtime while `uv` manages project environments and packages.
 - `docker-completion` is intentionally not declared; Homebrew marks it deprecated, and `docker` now owns the completion files.
+- The work group uses `claude-code@latest` for Claude Code's latest channel, matching the installed CLI selection.
 - Cleanup is always manual through `dots-brew cleanup`; neither `chezmoi apply` nor `dots-brew sync` uninstalls undeclared packages.
