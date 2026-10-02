@@ -34,6 +34,9 @@ possible future Linux approach. Linux is not a tested/supported setup today.
 For an existing machine, review [docs/APPLY-SAFETY.md](docs/APPLY-SAFETY.md)
 before running `chezmoi apply`.
 
+For a personal Mac, follow [docs/PERSONAL-MAC.md](docs/PERSONAL-MAC.md)
+for the update checklist, local identity settings, and verification.
+
 ## Config Model
 
 Effective config resolves in this order:
