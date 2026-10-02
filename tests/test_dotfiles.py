@@ -295,10 +295,35 @@ class DotfilesTests(unittest.TestCase):
         )
         shell = self.render("dot_zshrc.tmpl")
         self.assertNotIn("export ASDF_DATA_DIR", shell)
+        self.assertNotIn('installs/$_asdf_tool', shell)
         self.assertNotIn("export SSH_AUTH_SOCK", shell)
         self.assertNotIn("_auto_op_signin", shell)
         result = self.run_command([BASH], input=self.render(".chezmoiscripts/run_onchange_30-export-ssh-keys.sh.tmpl"))
         self.assertIn("disabled", result.stdout)
+
+    @unittest.skipUnless(ZSH, "requires zsh")
+    def test_asdf_local_binaries_follow_shims_and_existing_path(self):
+        # Execute the rendered runtime block with isolated install directories.
+        data = Path(self.env["ASDF_DATA_DIR"])
+        go_bin = data / "installs/golang/1.2.3/bin"
+        packages_bin = data / "installs/golang/1.2.3/packages/bin"
+        for directory in (data / "shims", go_bin, packages_bin):
+            directory.mkdir(parents=True)
+        (self.home / ".tool-versions").write_text(
+            "# a comment\n\ngolang 1.2.3\nnodejs missing\n"
+        )
+        shell = self.render("dot_zshrc.tmpl")
+        block = shell[shell.index("# asdf install bin dirs"):shell.index("# UV —")]
+        block = block.replace('$HOME/.tool-versions', str(self.home / ".tool-versions"))
+        initial = f"{data}/shims:/usr/bin:/bin"
+        script = (
+            f"export PATH={json.dumps(initial)}\n"
+            'path_append() { [[ ":$PATH:" != *":$1:"* ]] && export PATH="$PATH:$1"; }\n'
+            + block + "\n" + block + '\nprint -r -- "$PATH"\n'
+        )
+        result = self.run_command([ZSH, "-f"], input=script)
+        self.assertEqual(result.stdout.strip().split(":"),
+                         initial.split(":") + [str(go_bin), str(packages_bin)])
 
     def test_brew_core_toggle_does_not_disable_other_groups(self):
         self.configure_brewfile()

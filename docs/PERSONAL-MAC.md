@@ -11,6 +11,30 @@ backup of existing `~/.zshrc`, `~/.gitconfig`, `~/.ssh/config`,
 `~/.config/dotfiles/`, and `~/.config/git/local.gitconfig` before applying.
 Keep that backup private: these files can contain machine-specific credentials.
 
+Run this in the personal Mac's terminal before editing or applying:
+
+```bash
+(
+  set -eu
+  umask 077
+  trial_backup="$(mktemp -d "$HOME/dotfiles-backup.XXXXXX")"
+  for relative in .zshrc .zshenv .gitconfig .ssh/config .tool-versions \
+    .config/dotfiles .config/git/local.gitconfig .config/1Password/ssh/agent.toml; do
+    if [ -e "$HOME/$relative" ]; then
+      mkdir -p "$trial_backup/$(dirname "$relative")"
+      cp -pR "$HOME/$relative" "$trial_backup/$relative"
+    fi
+  done
+  git -C "$(chezmoi source-path)" rev-parse HEAD > "$trial_backup/source-revision.txt"
+  printf 'Backup: %s\n' "$trial_backup"
+)
+```
+
+This requires an existing chezmoi setup. On a Mac with no chezmoi yet, back up
+any existing shell/Git/SSH configuration manually before bootstrap.
+To restore a file, copy that specific saved file back to its original path,
+then review `chezmoi diff` before applying again. Keep the printed backup path.
+
 For an assisted session, use this handoff:
 
 > Update this personal Mac using docs/PERSONAL-MAC.md in cruznick/configs.
@@ -73,6 +97,8 @@ from local startup files before continuing:
 
 ```bash
 unset DOTFILES_PROFILE DOTFILES_PROVIDER DOTFILES_MACHINE_PRESET
+chezmoi execute-template '{{ includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . }}' \
+  | jq '{active_profile, active_provider, machine_preset, selected_work_contexts, optional_integrations}'
 chezmoi diff
 chezmoi status
 ```
@@ -136,3 +162,35 @@ so a successful apply alone does not establish readiness.
 
 For intentional upgrades of the active Homebrew groups, run `dots-brew update`.
 Normal apply/sync uses `--no-upgrade`. See [ASDF.md](ASDF.md) for runtime retries.
+
+## If verification finds gaps
+
+| Finding | Action |
+| --- | --- |
+| Missing Homebrew packages | Run `dots-brew sync`, then `dots-brew audit --missing`. |
+| Missing pinned Node or another runtime | After applying `.tool-versions`, run `(cd "$HOME" && asdf install && asdf reshim)`. |
+| Missing asdf plugins | Use the complete hook retry below. |
+| Incorrect Git identity | Inspect `git -C "$HOME" config --show-origin --get-regexp '^user[.]'`; correct local overrides before committing. |
+| Missing SSH/signing selectors | Unlock/configure 1Password, follow [SSH-KEYS.md](SSH-KEYS.md), then apply again. |
+| Untracked Homebrew packages | Review each item; personal apps can be intentionally retained. Do not run broad cleanup to make health green. |
+| Pending target edits | Preserve or merge the edits using [APPLY-SAFETY.md](APPLY-SAFETY.md), then review the diff again. |
+
+Retry the full asdf hook from any source location:
+
+```bash
+(
+  set -o pipefail
+  chezmoi execute-template \
+    '{{ includeTemplate ".chezmoiscripts/run_onchange_20-setup-asdf.sh.tmpl" . }}' | bash
+)
+dots-health --fast
+```
+
+The hook reports failures as warnings, so verify the health result afterward.
+Check GUI apps launch and grant requested macOS permissions locally. App
+licenses, accessibility permissions, 1Password authentication, and manual app
+imports cannot be established by repository tests.
+
+Record `git -C "$(chezmoi source-path)" rev-parse HEAD`, the health summary,
+and any accepted untracked packages for this trial. Keep private diffs and
+credential-related output on the personal Mac.

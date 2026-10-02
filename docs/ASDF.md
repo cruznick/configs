@@ -66,6 +66,11 @@ Apply the desired `.tool-versions` first if retrying without a full apply.
 The managed zsh configuration puts `${ASDF_DATA_DIR:-$HOME/.asdf}/shims` before
 Homebrew and removes duplicate copies of that shim directory, including when it
 was inherited from the parent shell. It does not source the old asdf initializer.
+When enabled, it also appends existing install `bin` and Go `packages/bin`
+directories for versions in the home `.tool-versions`. This exposes locally
+installed commands before their shims are refreshed. Shims and existing PATH
+entries retain priority; disabling asdf skips these additions too. Run
+`asdf reshim` after installing commands to preserve project-specific selection.
 
 `dots-health` verifies all six shim paths and checks that each repo-declared
 version is installed when asdf is enabled. Project-specific `.tool-versions` files still control the

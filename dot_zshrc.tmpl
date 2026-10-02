@@ -218,6 +218,25 @@ export PNPM_HOME="$HOME/Library/pnpm"
 # =============================================================================
 [[ -s "$HOME/.gvm/scripts/gvm" ]] && source "$HOME/.gvm/scripts/gvm"
 
+# asdf install bin dirs — locally built binaries (go install → GOBIN, npm -g,
+# pip) land in each tool's install dir and are only reachable via shims after
+# `asdf reshim`. Append the bin dirs of the versions pinned in ~/.tool-versions
+# (after the shims, so per-project versions still win for shimmed tools).
+# Go under asdf: GOBIN=…/golang/<v>/bin, GOPATH/bin=…/golang/<v>/packages/bin.
+{{ if $optional.asdf -}}
+if [[ -r "$HOME/.tool-versions" ]]; then
+  while read -r _asdf_tool _asdf_ver _; do
+    [[ -z "$_asdf_tool" || "$_asdf_tool" == \#* ]] && continue
+    for _asdf_dir in \
+      "${ASDF_DATA_DIR:-$HOME/.asdf}/installs/$_asdf_tool/$_asdf_ver/bin" \
+      "${ASDF_DATA_DIR:-$HOME/.asdf}/installs/$_asdf_tool/$_asdf_ver/packages/bin"; do
+      [[ -d "$_asdf_dir" ]] && path_append "$_asdf_dir"
+    done
+  done < "$HOME/.tool-versions"
+  unset _asdf_tool _asdf_ver _asdf_dir
+fi
+{{ end -}}
+
 # =============================================================================
 # UV — Python package/venv manager (project-level)
 # Global python version managed by asdf; uv manages venvs within projects.
