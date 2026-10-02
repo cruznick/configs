@@ -1,8 +1,11 @@
 tap "atlassian/acli"
 tap "datadog-labs/pack"
+tap "databricks/tap"
 
 brew "atlassian/acli/acli"
 brew "datadog-labs/pack/pup"
+brew "databricks/tap/databricks"
+brew "shellcheck"
 brew "steampipe"
 
 cask "openlens"
