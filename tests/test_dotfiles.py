@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[1]
 CHEZMOI = shutil.which("chezmoi")
 BASH = shutil.which("bash")
 ZSH = shutil.which("zsh")
-ASDF_HOOK = ".chezmoiscripts/run_onchange_20-setup-asdf.sh.tmpl"
+ASDF_HOOK = ".chezmoiscripts/run_onchange_after_20-setup-asdf.sh.tmpl"
 
 
 # All package-manager calls are intercepted. Unknown operations fail closed.
@@ -240,6 +240,24 @@ class DotfilesTests(unittest.TestCase):
         self.state["uninstall_failure"] = 7
         self.save_state()
         self.assertEqual(self.brew("cleanup", "--force", check=False).returncode, 7)
+
+    def test_apply_installs_new_runtime_versions_after_deploying_file(self):
+        source = self.root / "apply-source"
+        scripts = source / ".chezmoiscripts"
+        scripts.mkdir(parents=True)
+        desired = (self.source / "dot_tool-versions").read_text()
+        (source / "dot_tool-versions").write_text(desired)
+        (self.home / ".tool-versions").write_text("nodejs lts\n")
+        (scripts / Path(ASDF_HOOK).name[:-5]).write_text(self.render(ASDF_HOOK))
+        self.run_command([
+            CHEZMOI, "--config", str(self.root / "config.toml"),
+            "--persistent-state", str(self.root / "apply.state"),
+            "--source", str(source), "--destination", str(self.home),
+            "apply", "--force",
+        ])
+        installs = [call for call in self.calls("asdf") if call["args"] == ["install"]]
+        self.assertEqual(len(installs), 1)
+        self.assertEqual(installs[0]["versions"], desired)
 
     def test_asdf_binary_installs_home_versions_and_skips_existing_plugins(self):
         result = self.run_command([BASH], input=self.render(ASDF_HOOK))

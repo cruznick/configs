@@ -181,7 +181,7 @@ Retry the full asdf hook from any source location:
 (
   set -o pipefail
   chezmoi execute-template \
-    '{{ includeTemplate ".chezmoiscripts/run_onchange_20-setup-asdf.sh.tmpl" . }}' | bash
+    '{{ includeTemplate ".chezmoiscripts/run_onchange_after_20-setup-asdf.sh.tmpl" . }}' | bash
 )
 dots-health --fast
 ```

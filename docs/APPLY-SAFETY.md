@@ -125,6 +125,6 @@ cleanup preview/confirmation/failures, protected packages, formula/cask name
 collisions, and asdf installation from the home version file. Tests do not change
 your real home directory, installed packages, or chezmoi state.
 
-The asdf hook changed from `run_once_20` to `run_onchange_20`. Expect it to run on
+The asdf hook changed from `run_once_20` to `run_onchange_after_20`. Expect it to run on
 the first full apply after this update and again after `dot_tool-versions` edits.
 Review [ASDF.md](ASDF.md) before applying if tool downloads should be deferred.

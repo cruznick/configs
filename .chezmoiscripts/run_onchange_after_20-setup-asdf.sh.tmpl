@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Synchronize asdf tools after files are applied, including version-file changes.
+# The after attribute ensures the new .tool-versions is deployed before install.
 # tool-versions-sha256: {{ include "dot_tool-versions" | sha256sum }}
 set -euo pipefail
 {{ $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson }}

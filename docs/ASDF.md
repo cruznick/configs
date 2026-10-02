@@ -14,14 +14,18 @@ old installs are not automatically removed.
 
 ## Synchronization
 
-On macOS, `.chezmoiscripts/run_onchange_20-setup-asdf.sh.tmpl` runs after chezmoi
+On macOS, `.chezmoiscripts/run_onchange_after_20-setup-asdf.sh.tmpl` runs after chezmoi
 deploys files. It adds missing plugins, installs the home `.tool-versions`, enables
 corepack when available, and refreshes shims. It always runs from the home
 directory, even if `chezmoi apply` was invoked inside another project.
 
 The hook's rendered content includes the checksum of `dot_tool-versions`.
 Changing that file therefore triggers installation on the next full apply. The
-new hook also runs once when upgrading from the former `run_once_20` hook.
+new hook also runs once when upgrading from the former `run_once_20` or
+`run_onchange_20` hook. The explicit `after` attribute matters: an ordinary
+script in `.chezmoiscripts` can run before `.tool-versions` is deployed and
+install the old selection instead. Regression coverage exercises a real
+isolated apply with an old version file to verify this ordering.
 
 To defer automatic asdf setup on a machine, set:
 
@@ -56,7 +60,7 @@ previously missing asdf executable:
 ```bash
 set -o pipefail
 chezmoi execute-template --source ~/repos/personal/gh/configs \
-  '{{ includeTemplate ".chezmoiscripts/run_onchange_20-setup-asdf.sh.tmpl" . }}' | bash
+  '{{ includeTemplate ".chezmoiscripts/run_onchange_after_20-setup-asdf.sh.tmpl" . }}' | bash
 ```
 
 Apply the desired `.tool-versions` first if retrying without a full apply.
