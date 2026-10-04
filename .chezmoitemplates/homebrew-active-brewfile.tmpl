@@ -12,6 +12,11 @@
 {{- if hasKey $optional "homebrew_apps" -}}
   {{- $appsEnabled = (index $optional "homebrew_apps") -}}
 {{- end -}}
+{{- $activeProfile := (index $cfg "active_profile") | default "personal" -}}
+{{- $personalEnabled := eq $activeProfile "personal" -}}
+{{- if hasKey $optional "homebrew_personal" -}}
+  {{- $personalEnabled = (index $optional "homebrew_personal") -}}
+{{- end -}}
 {{- $extrasEnabled := false -}}
 {{- if hasKey $optional "homebrew_extras" -}}
   {{- $extrasEnabled = (index $optional "homebrew_extras") -}}
@@ -36,6 +41,11 @@
 
 # group: apps
 {{ include "homebrew/Brewfile.apps" }}
+{{ end -}}
+{{- if $personalEnabled }}
+
+# group: personal
+{{ include "homebrew/Brewfile.personal" }}
 {{ end -}}
 {{- if $extrasEnabled }}
 

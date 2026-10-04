@@ -111,6 +111,7 @@ Source of truth:
 - `homebrew/Brewfile.core`
 - `homebrew/Brewfile.dev`
 - `homebrew/Brewfile.apps`
+- `homebrew/Brewfile.personal`
 - `homebrew/Brewfile.extras`
 - `homebrew/Brewfile.work`
 
@@ -119,12 +120,23 @@ Homebrew-specific config from profiles and `~/.config/dotfiles/overrides.toml`.
 It does not parse private work-context files, so a broken local work context
 does not block Brewfile rendering.
 
-Default group enablement (`mac-dev`; `mac-minimal` enables only core):
+Group intent:
+- `core`: baseline CLI tools
+- `dev`: developer and infrastructure tooling
+- `apps`: general desktop apps
+- `personal`: personal-profile tools and apps, skipped by default on work-profile machines
+- `extras`: optional heavy, niche, media, or game-related tools
+- `work`: work-profile tools
+
+Default group enablement for `mac-dev`:
 - `homebrew_core = true`
 - `homebrew_dev = true`
 - `homebrew_apps = true`
+- `homebrew_personal = true` when `profile = "personal"`, otherwise `false`
 - `homebrew_extras = false`
 - `homebrew_work = false`
+
+`mac-minimal` explicitly enables only `homebrew_core`.
 
 Machine-local group selection uses the existing override file:
 
@@ -134,6 +146,7 @@ Machine-local group selection uses the existing override file:
 homebrew_core = true
 homebrew_dev = true
 homebrew_apps = true
+homebrew_personal = true
 homebrew_extras = false
 homebrew_work = false
 ```
@@ -152,6 +165,7 @@ Workflows:
 
 Operational rule:
 - direct `brew install` is fine for testing, but persistent state must be added to `homebrew/Brewfile.*`
+- personal tools that should not follow a work profile belong in `homebrew/Brewfile.personal`
 - `chezmoi apply` and `dots-brew sync` do not uninstall undeclared packages
 - apply/sync use `--no-upgrade`; Homebrew may still update shared dependencies needed by newly installed packages
 - destructive removal of undeclared packages is manual-only via `dots-brew cleanup`

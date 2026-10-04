@@ -7,6 +7,7 @@ Homebrew state is declared in repo-tracked Brewfiles:
 - `homebrew/Brewfile.core`
 - `homebrew/Brewfile.dev`
 - `homebrew/Brewfile.apps`
+- `homebrew/Brewfile.personal`
 - `homebrew/Brewfile.extras`
 - `homebrew/Brewfile.work`
 
@@ -18,6 +19,30 @@ The machine-specific active Brewfile is rendered from them by:
 The install hook uses that rendered Brewfile during `chezmoi apply`. Brewfile
 rendering reads only profiles and `~/.config/dotfiles/overrides.toml`; it does
 not parse private work-context files.
+
+## Group Semantics
+
+Use the narrowest group that describes why the package should be present:
+
+- `core`: baseline CLI tools expected on every managed machine.
+- `dev`: developer and infrastructure tooling.
+- `apps`: general desktop apps that are not profile-specific.
+- `personal`: personal-profile apps and tools that should not install by default on work-profile machines.
+- `extras`: optional heavy, niche, media, or game-related tools.
+- `work`: work-profile tools that should not install by default on personal-profile machines.
+
+Examples:
+
+- Put `git`, `jq`, `ripgrep`, and shell ergonomics in `core`.
+- Put `docker`, `gh`, `awscli`, and Kubernetes tools in `dev`.
+- Put normal daily desktop apps such as browsers, terminal apps, and productivity apps in `apps`.
+- Put personal-only tools such as `beets`, `balenaetcher`, game-adjacent apps, personal media utilities, and remote-support tools in `personal` when they should not follow a work profile.
+- Put large optional apps or tools that are useful only on selected machines in `extras`.
+- Put company-required apps and CLIs in `work`.
+
+If a package is installed briefly for testing, it does not need to be declared.
+If it should survive rebuilds or new-machine setup, declare it in one of these
+Brewfiles.
 
 ## Machine Selection
 
@@ -31,6 +56,7 @@ disabling core does not disable another enabled group. Local flags override pres
 homebrew_core = true
 homebrew_dev = true
 homebrew_apps = true
+homebrew_personal = true
 homebrew_extras = false
 homebrew_work = false
 ```
@@ -40,10 +66,76 @@ Default behavior for `mac-dev` (also used by existing overrides without a preset
 - `homebrew_core = true`
 - `homebrew_dev = true`
 - `homebrew_apps = true`
+- `homebrew_personal = true` when `profile = "personal"`, otherwise `false`
 - `homebrew_extras = false`
 - `homebrew_work = false`
 
+`mac-minimal` explicitly enables only `homebrew_core`.
+
+The `personal` group is profile-gated. It defaults to enabled only when the
+active profile is `personal`. On a work-profile machine, it defaults to disabled
+unless the local override file explicitly enables it.
+
+The `work` group is opt-in. It defaults to disabled even when the active profile
+is `work`, because concrete work requirements vary by machine and company.
+
 This stays machine-local, debuggable, and separate from private work-context data.
+
+## Profile Examples
+
+Personal machine with personal tools and extras:
+
+```toml
+# ~/.config/dotfiles/overrides.toml
+profile = "personal"
+provider = "gh"
+
+[optional_integrations]
+homebrew_core = true
+homebrew_dev = true
+homebrew_apps = true
+homebrew_personal = true
+homebrew_extras = true
+homebrew_work = false
+```
+
+Work machine without personal apps:
+
+```toml
+# ~/.config/dotfiles/overrides.toml
+profile = "work"
+provider = "gh"
+
+[optional_integrations]
+homebrew_core = true
+homebrew_dev = true
+homebrew_apps = true
+homebrew_personal = false
+homebrew_extras = false
+homebrew_work = true
+```
+
+Minimal machine:
+
+```toml
+# ~/.config/dotfiles/overrides.toml
+profile = "personal"
+
+[optional_integrations]
+homebrew_core = true
+homebrew_dev = false
+homebrew_apps = false
+homebrew_personal = false
+homebrew_extras = false
+homebrew_work = false
+```
+
+You can inspect the resolved result with:
+
+```bash
+dots-brew groups
+dots-debug --json
+```
 
 ## Workflows
 
@@ -135,10 +227,18 @@ Add a package or app:
 1. Edit the appropriate file under `homebrew/Brewfile.*`
 2. Run `chezmoi apply` or `dots-brew sync`
 
+If the package is currently reported as untracked, decide whether it should be
+shared, personal-profile only, work-profile only, optional, or removed before
+adding it.
+
 Remove a package or app:
 
 1. Remove the entry from the appropriate file under `homebrew/Brewfile.*`
 2. Run `chezmoi apply` or `dots-brew sync`
+
+Removal from a Brewfile stops future installs but does not uninstall the package.
+Use `dots-brew cleanup` or an explicit `brew uninstall ...` when you want to
+remove the installed package too.
 
 Audit drift between installed packages and the active declared state:
 
@@ -169,6 +269,7 @@ packages from the active Homebrew groups. See [MULTI-MACHINE.md](MULTI-MACHINE.m
 
 - Direct `brew install` is acceptable for short-lived testing.
 - Persistent Homebrew state must be recorded in `homebrew/Brewfile.*`.
+- The `personal` group is repo-tracked but profile-scoped; it is not a local-only Brewfile.
 - Brew setup remains non-fatal during bootstrap and apply.
 - `chezmoi` is intentionally unmanaged by Brewfiles because bootstrap installs it separately.
 - Version-pinned runtimes and CLIs (`nodejs`, `python`, `golang`, `terraform`, `kubectl`, `helm`) remain managed by asdf to avoid shim conflicts.

@@ -3,6 +3,7 @@
 homebrew_core = true
 homebrew_dev = false
 homebrew_apps = false
+homebrew_personal = false
 homebrew_extras = false
 homebrew_work = false
 zinit = true

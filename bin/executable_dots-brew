@@ -243,10 +243,12 @@ case "$cmd" in
     "$CHEZMOI_BIN" -S "$(source_dir)" execute-template '{{ includeTemplate ".chezmoitemplates/homebrew-config.json.tmpl" . }}' \
       | jq -r '
           .optional_integrations as $o
+          | .active_profile as $profile
           | [
               ["core", (if $o | has("homebrew_core") then $o.homebrew_core else true end)],
               ["dev", (if $o | has("homebrew_dev") then $o.homebrew_dev else true end)],
               ["apps", (if $o | has("homebrew_apps") then $o.homebrew_apps else true end)],
+              ["personal", (if $o | has("homebrew_personal") then $o.homebrew_personal else ($profile == "personal") end)],
               ["extras", (if $o | has("homebrew_extras") then $o.homebrew_extras else false end)],
               ["work", (if $o | has("homebrew_work") then $o.homebrew_work else false end)]
             ][]

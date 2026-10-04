@@ -4,7 +4,11 @@
 set -euo pipefail
 {{ $cfg := includeTemplate ".chezmoitemplates/homebrew-config.json.tmpl" . | fromJson }}
 {{ $optional := $cfg.optional_integrations | default dict }}
-{{ $homebrewEnabled := or $optional.homebrew_core $optional.homebrew_dev $optional.homebrew_apps $optional.homebrew_extras $optional.homebrew_work }}
+{{ $personalEnabled := eq $cfg.active_profile "personal" }}
+{{ if hasKey $optional "homebrew_personal" }}
+  {{ $personalEnabled = $optional.homebrew_personal }}
+{{ end }}
+{{ $homebrewEnabled := or $optional.homebrew_core $optional.homebrew_dev $optional.homebrew_apps $personalEnabled $optional.homebrew_extras $optional.homebrew_work }}
 {{ $brewfile := includeTemplate ".chezmoitemplates/homebrew-active-brewfile.tmpl" . }}
 
 {{ if ne .chezmoi.os "darwin" -}}

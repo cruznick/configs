@@ -45,12 +45,14 @@ Source files:
 - `homebrew/Brewfile.core`
 - `homebrew/Brewfile.dev`
 - `homebrew/Brewfile.apps`
+- `homebrew/Brewfile.personal`
 - `homebrew/Brewfile.extras`
 - `homebrew/Brewfile.work`
 
 Activation:
 - the active Brewfile is rendered from those files via `.chezmoitemplates/homebrew-active-brewfile.tmpl`
 - machine-local enablement is controlled by `optional_integrations.homebrew_*`
+- `homebrew_personal` defaults from the active profile: enabled for `personal`, disabled otherwise
 - work-context data is not used for Homebrew selection
 - normal apply/sync installs missing declared packages with `--no-upgrade`; explicit `dots-brew update` upgrades only the active Brewfile, not every installed package
 - cleanup previews the audit's typed candidate lists; only untracked requested formulae and casks can be removed, and audit exclusions stay protected
@@ -61,6 +63,11 @@ Activation:
 hook runs after files are deployed, uses the asdf executable, and runs from the
 home directory. Its rendered content includes the version file's checksum so a
 version edit triggers synchronization. See [ASDF.md](ASDF.md).
+
+The `personal` and `work` groups are both repo-tracked. Their activation is
+profile/config driven, not based on private work-context files. This keeps
+package selection reproducible while avoiding accidental installation of
+personal apps on a work-profile machine.
 
 ## Local Session Model
 

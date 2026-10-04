@@ -157,7 +157,7 @@ class DotfilesTests(unittest.TestCase):
                 if (item := json.loads(line))["command"] == name] if log.exists() else []
 
     def configure_brewfile(self):
-        for group in ("core", "dev", "apps", "extras", "work"):
+        for group in ("core", "dev", "apps", "personal", "extras", "work"):
             (self.source / "homebrew" / f"Brewfile.{group}").write_text("")
         (self.source / "homebrew/Brewfile.core").write_text(
             'brew "jq"\nbrew "dual"\nbrew "dep-only"\ncask "core-app"\n'
@@ -354,7 +354,7 @@ class DotfilesTests(unittest.TestCase):
     def test_all_brew_groups_disabled_skips_package_commands(self):
         (self.contexts.parent / "overrides.toml").write_text(
             "[optional_integrations]\n" + "\n".join(
-                f"homebrew_{group} = false" for group in ("core", "dev", "apps", "extras", "work")
+                f"homebrew_{group} = false" for group in ("core", "dev", "apps", "personal", "extras", "work")
             ) + "\n"
         )
         result = self.run_command([BASH], input=self.render(".chezmoiscripts/run_onchange_10-install-brew.sh.tmpl"))
@@ -378,11 +378,42 @@ class DotfilesTests(unittest.TestCase):
                     self.assertFalse(options["homebrew_work"])
                     self.assertEqual(options["asdf"], preset == "mac-dev")
                     self.assertEqual(options["homebrew_apps"], preset == "mac-dev")
+                    if "homebrew_personal" in options:
+                        self.assertFalse(options["homebrew_personal"])
                     if preset == "mac-minimal":
                         self.assertNotIn('cask "', self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl"))
                         gitconfig = self.render("dot_gitconfig.tmpl")
                         self.assertNotIn("external = difft", gitconfig)
                         self.assertNotIn("op-ssh-sign", gitconfig)
+
+    def test_homebrew_personal_group_is_profile_gated(self):
+        personal_package = 'brew "beets"'
+        work_package = 'brew "shellcheck"'
+
+        (self.contexts.parent / "overrides.toml").write_text('profile = "personal"\n')
+        rendered = self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl")
+        self.assertIn("# group: personal", rendered)
+        self.assertIn(personal_package, rendered)
+        self.assertNotIn(work_package, rendered)
+
+        (self.contexts.parent / "overrides.toml").write_text('profile = "work"\n')
+        rendered = self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl")
+        self.assertNotIn("# group: personal", rendered)
+        self.assertNotIn(personal_package, rendered)
+
+        (self.contexts.parent / "overrides.toml").write_text(
+            'profile = "work"\n[optional_integrations]\nhomebrew_personal = true\n'
+        )
+        rendered = self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl")
+        self.assertIn("# group: personal", rendered)
+        self.assertIn(personal_package, rendered)
+
+        (self.contexts.parent / "overrides.toml").write_text(
+            'machine_preset = "mac-minimal"\nprofile = "personal"\n'
+        )
+        rendered = self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl")
+        self.assertNotIn("# group: personal", rendered)
+        self.assertNotIn(personal_package, rendered)
 
     def test_machine_local_overrides_and_environment_precedence(self):
         (self.contexts.parent / "overrides.toml").write_text(
