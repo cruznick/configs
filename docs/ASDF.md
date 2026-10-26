@@ -5,10 +5,9 @@ Terraform, kubectl, and Helm. Homebrew installs the asdf executable through the
 dev Brewfile group. This configuration supports asdf 0.16 and later; the old
 `asdf.sh` shell initializer is no longer used.
 
-All six repo selections are concrete versions. Node is pinned to `24.14.0`, the
-version used on the existing Mac when introducing presets, instead of the moving
-`lts` selector. This is a reproducibility baseline, not a claim that it is the
-latest release. Future upgrades are deliberate edits to `dot_tool-versions`.
+All six repo selections are concrete versions. Node is pinned to `24.22.1` and
+Python to `3.12.16`, instead of moving selectors such as `lts` or `latest`.
+Future upgrades are deliberate edits to `dot_tool-versions`.
 An existing `lts` installation may need the exact-version install on next apply;
 old installs are not automatically removed.
 

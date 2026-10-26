@@ -99,7 +99,7 @@ dots-health --fast
 Apply and `dots-brew sync` install missing active packages using `--no-upgrade`.
 Use `dots-brew update` for explicit upgrades to the active Brewfile. New packages
 can still update shared dependencies; Homebrew is not a version lockfile.
-asdf uses concrete repo versions, currently including Node `24.14.0`.
+asdf uses concrete repo versions, currently including Node `24.22.1`.
 Preview removal separately with `dots-brew cleanup --dry-run`; disabling a group
 does not uninstall it. Review the preview carefully after changing presets.
 
