@@ -11,3 +11,6 @@
 
 # Python regression test cache
 __pycache__/
+
+# Private, machine-local reinstall handoff (never part of chezmoi or Git).
+LOCAL-REINSTALL-RESUME.md

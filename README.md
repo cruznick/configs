@@ -215,6 +215,10 @@ dots-brew audit --missing
 
 When you intentionally want package upgrades, run `dots-brew update` separately.
 
+For a format/reinstall, use [docs/RESTORE-PROMPT.md](docs/RESTORE-PROMPT.md).
+The optional `homebrew/Brewfile.recovery` records the complete installed package
+set from the recovery snapshot; it is not enabled by a machine profile.
+
 See [docs/APPLY-SAFETY.md](docs/APPLY-SAFETY.md) for selective apply,
 target-side edit handling, and validation commands.
 

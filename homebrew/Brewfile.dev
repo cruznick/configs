@@ -23,6 +23,8 @@ brew "docker-compose"
 brew "buildkit"
 brew "hashicorp/tap/vault"
 brew "rsync"
+brew "hadolint"
+brew "trivy"
 
 cask "gcloud-cli"
 cask "ghostty"
