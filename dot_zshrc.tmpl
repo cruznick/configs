@@ -281,10 +281,14 @@ fi
 # =============================================================================
 # Personal glab uses a dedicated config dir
 glab-personal() {
-  GLAB_CONFIG_DIR="$HOME/.config/glab-personal" glab "$@"
+  GLAB_CONFIG_DIR="$HOME/.config/glab-personal" command glab "$@"
 }
 
 # =============================================================================
 # DIRENV (per-directory env loading — fetches company secrets from 1Password on cd)
 # =============================================================================
 command -v direnv >/dev/null && eval "$(direnv hook zsh)"
+
+# Route host CLI accounts by directory (wrappers execute the real binaries).
+gh() { command gh-auto "$@"; }
+glab() { command glab-auto "$@"; }

@@ -1,0 +1,20 @@
+{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
+#!/usr/bin/env bash
+# Directory-scoped gh account routing. Tokens in the environment take precedence.
+set -euo pipefail
+{{ includeTemplate ".chezmoitemplates/cli-context.sh.tmpl" . }}
+case "$context" in
+{{ range $slug := $cfg.selected_work_contexts -}}
+{{ $ctx := index $cfg.work_contexts $slug -}}
+  {{ $slug | quote }})
+{{ if has "gh" (index ((index $ctx "providers") | default dict) "enabled" | default list) -}}
+    export GH_CONFIG_DIR="{{ joinPath $.chezmoi.homeDir ".config" ((index ((index $ctx "cli") | default dict) "gh_config_dir") | default (printf "gh-%s" $slug)) }}"
+{{ else -}}
+    echo "gh is disabled in context {{ $slug }}" >&2
+    exit 1
+{{ end -}}
+    ;;
+{{ end -}}
+  *) export GH_CONFIG_DIR="{{ .chezmoi.homeDir }}/.config/gh" ;;
+esac
+exec gh "$@"

@@ -39,8 +39,38 @@
 {{- $availableWorkContexts := list -}}
 {{- range $path := glob (joinPath $workContextDir "*.toml") -}}
   {{- $ctx := include $path | fromToml -}}
+  {{- $ctxProviders := index ((index $ctx "providers") | default dict) "enabled" | default list -}}
   {{- $ctxMeta := (index $ctx "context") | default dict -}}
   {{- $slug := ((index $ctxMeta "slug") | default "") | toString -}}
+  {{- $credentials := (index $ctxMeta "credentials") | default "dedicated" -}}
+  {{- $defaultProvider := index ((index $ctx "providers") | default dict) "default" | default "" -}}
+  {{- if and $defaultProvider (not (has $defaultProvider $ctxProviders)) -}}
+    {{- fail (printf "Context %q: default provider must be enabled" $slug) -}}
+  {{- end -}}
+  {{- if not (has $credentials (list "personal" "dedicated")) -}}
+    {{- fail (printf "Context %q: credentials must be personal or dedicated" $slug) -}}
+  {{- end -}}
+  {{- if and (eq $slug "kavak") (or (has "gh" $ctxProviders) (eq $credentials "personal")) -}}
+    {{- fail "Kavak requires GitLab-only providers and dedicated credentials" -}}
+  {{- end -}}
+  {{- range $provider := $ctxProviders -}}
+    {{- if not (has $provider (list "gh" "gl")) -}}
+      {{- fail (printf "Context %q has unknown provider %q" $slug $provider) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if eq $credentials "personal" -}}
+    {{- $provider := index ((index $ctx "providers") | default dict) "default" | default (first $ctxProviders) | default "gh" -}}
+    {{- $personalGit := dict
+      "name" (index ($cfg.identity | default dict) "git_name" | default "")
+      "email" (index ($cfg.identity | default dict) "git_email" | default "")
+      "commit_gpgsign" true -}}
+    {{- $git := mergeOverwrite $personalGit ((index $ctx "git") | default dict) -}}
+    {{- $_ := set $git "signing_key" (printf "~/.ssh/signing-pubs/personal-%s.pub" $provider) -}}
+    {{- $_ := set $git "signing_item" "" -}}
+    {{- $_ := set $ctx "git" $git -}}
+    {{- $_ := set $ctx "ssh" (dict "github_alias" "github.com-personal" "gitlab_alias" "gitlab.com-personal") -}}
+    {{- $_ := set $ctx "cli" (dict "glab_config_dir" "glab-personal" "gh_config_dir" "gh") -}}
+  {{- end -}}
   {{- if $slug -}}
     {{- $availableWorkContexts = append $availableWorkContexts $slug -}}
     {{- $_ := set $workContexts $slug $ctx -}}
@@ -59,7 +89,7 @@
   {{- range $requestedWorkContexts -}}
     {{- if hasKey $workContexts . -}}
       {{- $ctx := index $workContexts . -}}
-      {{- $meta := $ctx.context | default dict -}}
+      {{- $meta := (index $ctx "context") | default dict -}}
       {{- $enabled := true -}}
       {{- if hasKey $meta "enabled" -}}
         {{- $enabled = index $meta "enabled" -}}
@@ -72,7 +102,7 @@
 {{- else -}}
   {{- range $slug := ($availableWorkContexts | sortAlpha) -}}
     {{- $ctx := index $workContexts $slug -}}
-    {{- $meta := $ctx.context | default dict -}}
+    {{- $meta := (index $ctx "context") | default dict -}}
     {{- $enabled := true -}}
     {{- if hasKey $meta "enabled" -}}
       {{- $enabled = index $meta "enabled" -}}

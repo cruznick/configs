@@ -446,6 +446,119 @@ class DotfilesTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     self.render(".chezmoitemplates/effective-config.json.tmpl")
 
+    def test_work_profile_defaults_to_gitlab_and_allows_github(self):
+        (self.contexts.parent / "overrides.toml").write_text('profile = "work"\n')
+        config = json.loads(self.render(".chezmoitemplates/effective-config.json.tmpl"))
+        self.assertEqual(config["active_provider"], "gl")
+        self.assertEqual(config["providers"]["enabled"], ["gh", "gl"])
+        (self.contexts.parent / "overrides.toml").write_text('profile = "work"\nprovider = "gh"\n')
+        config = json.loads(self.render(".chezmoitemplates/effective-config.json.tmpl"))
+        self.assertEqual(config["active_provider"], "gh")
+
+    def test_kavak_context_cannot_enable_github(self):
+        (self.contexts.parent / "overrides.toml").write_text('profile = "work"\n')
+        (self.contexts / "example.toml").write_text(
+            '[context]\nslug = "kavak"\n[providers]\nenabled = ["gh", "gl"]\n'
+        )
+        with self.assertRaises(AssertionError):
+            self.render(".chezmoitemplates/effective-config.json.tmpl")
+
+    def configure_three_contexts(self):
+        (self.contexts / "freelance.toml").write_text(
+            '[context]\nslug = "freelance"\ncredentials = "personal"\n'
+            '[providers]\nenabled = ["gh", "gl"]\ndefault = "gh"\n'
+            '[match]\ndirectories = ["~/repos/work/gh/freelance", "~/repos/work/gl/freelance"]\n'
+        )
+        (self.contexts / "kavak.toml").write_text(
+            '[context]\nslug = "kavak"\n[providers]\nenabled = ["gl"]\ndefault = "gl"\n'
+            '[git]\nemail = "fixture@kavak.invalid"\nsigning_key = "~/.ssh/signing-pubs/kavak-gl.pub"\n'
+            '[ssh]\ngitlab_identity_file = "~/.ssh/signing-pubs/kavak-gl.pub"\n'
+            '[match]\ndirectories = ["~/repos/work/gl/kavak"]\n'
+        )
+        selectors = self.home / ".ssh/signing-pubs"
+        selectors.mkdir(parents=True)
+        for key in ("personal-gh", "personal-gl", "kavak-gl"):
+            (selectors / (key + ".pub")).write_text("fixture key")
+
+    def test_three_context_git_routes_signing_and_clone_destination(self):
+        self.configure_three_contexts()
+        (self.home / ".gitconfig").write_text(self.render("dot_gitconfig.tmpl"))
+        hook = self.render(".chezmoiscripts/run_onchange_40-generate-work-gitconfigs.sh.tmpl")
+        self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1")
+        for key in ("GIT_CONFIG_GLOBAL", "GIT_DIR", "GIT_WORK_TREE"):
+            self.env.pop(key, None)
+        self.run_command([BASH], input=hook)
+        for directory, alias, email, signing in (
+            ("personal/gh", "personal", "fixture@example.invalid", "personal-gh"),
+            ("personal/gl", "personal", "fixture@example.invalid", "personal-gh"),
+            ("work/gh/freelance", "personal", "fixture@example.invalid", "personal-gh"),
+            ("work/gl/freelance", "personal", "fixture@example.invalid", "personal-gh"),
+            ("work/gl/kavak", "kavak", "fixture@kavak.invalid", "kavak-gl"),
+        ):
+            repo = self.home / "repos" / directory / "fixture"
+            repo.mkdir(parents=True)
+            self.run_command(["git", "init", "-q", str(repo)])
+            for host in ("github", "gitlab"):
+                expected_alias = "disabled" if alias == "kavak" and host == "github" else alias
+                for url in (f"git@{host}.com:owner/repo.git", f"ssh://git@{host}.com/owner/repo.git", f"https://{host}.com/owner/repo.git"):
+                    result = self.run_command(["git", "ls-remote", "--get-url", url], cwd=repo)
+                    self.assertEqual(result.stdout.strip(), f"git@{host}.com-{expected_alias}:owner/repo.git")
+            self.assertEqual(self.run_command(["git", "config", "user.email"], cwd=repo).stdout.strip(), email)
+            self.assertTrue(self.run_command(["git", "config", "user.signingkey"], cwd=repo).stdout.strip().endswith(signing + ".pub"))
+        # Clone initializes its destination before resolving includeIf: no network.
+        ssh = self.root / "fake-ssh"
+        ssh.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$HOME/ssh-args"\nexit 1\n')
+        ssh.chmod(0o755)
+        self.env.update(GIT_SSH=str(ssh), GIT_SSH_VARIANT="ssh")
+        parent = self.home / "repos/work/gl/kavak"
+        self.run_command(["git", "clone", "git@gitlab.com:owner/repo.git", "clone-test"], cwd=parent, check=False)
+        self.assertIn("git@gitlab.com-kavak", (self.home / "ssh-args").read_text())
+
+    def test_cli_routes_ignore_global_provider_and_block_kavak_github(self):
+        self.configure_three_contexts()
+        self.env["DOTFILES_PROVIDER"] = "gh"
+        for cli, config_var, personal_dir in (("gh", "GH_CONFIG_DIR", "gh"), ("glab", "GLAB_CONFIG_DIR", "glab-personal")):
+            wrapper = self.root / (cli + "-auto")
+            wrapper.write_text(self.render(f"bin/executable_{cli}-auto.tmpl"))
+            binary = self.root / "mock-bin" / cli
+            binary.write_text('#!/bin/sh\nprintf "%s\\n" "$' + config_var + '"\n')
+            binary.chmod(0o755)
+            for directory, expected in (("personal/gh", personal_dir), ("work/gh/freelance", personal_dir), ("work/gl/kavak", "glab-kavak")):
+                cwd = self.home / "repos" / directory
+                cwd.mkdir(parents=True, exist_ok=True)
+                result = self.run_command([BASH, str(wrapper), "auth", "status"], cwd=cwd, check=False)
+                if cli == "gh" and "kavak" in directory:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("disabled", result.stderr)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout.strip(), str(self.home / ".config" / expected))
+
+    def test_ssh_selectors_and_linked_worktree_context(self):
+        self.configure_three_contexts()
+        ssh_config = self.root / "ssh-config"
+        ssh_config.write_text(self.render("dot_ssh/config.tmpl"))
+        for alias, key in (("github.com-personal", "personal-gh"),
+                           ("gitlab.com-personal", "personal-gl"),
+                           ("gitlab.com-kavak", "kavak-gl")):
+            output = self.run_command(["ssh", "-G", "-F", str(ssh_config), alias]).stdout
+            self.assertIn(f"identityfile ~/.ssh/signing-pubs/{key}.pub", output)
+            self.assertIn("identitiesonly yes", output)
+        self.assertEqual(ssh_config.read_text().count("Host github.com-personal"), 1)
+        self.assertNotIn("Host github.com-kavak", ssh_config.read_text())
+        repo = self.home / "repos/work/gl/kavak/repo"
+        repo.mkdir(parents=True)
+        self.run_command(["git", "init", "-q", str(repo)])
+        self.run_command(["git", "-c", "user.name=Fixture", "-c", "user.email=f@example.invalid",
+                          "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", "fixture"], cwd=repo)
+        worktree = self.root / "external-worktree"
+        self.run_command(["git", "worktree", "add", "--detach", str(worktree)], cwd=repo)
+        wrapper = self.root / "gh-auto"
+        wrapper.write_text(self.render("bin/executable_gh-auto.tmpl"))
+        result = self.run_command([BASH, str(wrapper), "auth", "status"], cwd=worktree, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("gh is disabled in context kavak", result.stderr)
+
     def test_homebrew_render_does_not_parse_private_work_contexts(self):
         (self.contexts / "broken.toml").write_text("not valid [ toml")
         self.assertIn('brew "git"', self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl"))

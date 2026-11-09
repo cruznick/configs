@@ -26,6 +26,15 @@ for path in "$HOME"/.gitconfig-work-* "$HOME"/.zshrc.d/work-*.zsh; do
   backup_and_remove "$path"
 done
 
+cat > "$generated_dir/personal.gitconfig" <<'EOF'
+{{ range $host := list "github" "gitlab" }}
+[url "git@{{ $host }}.com-personal:"]
+  insteadOf = git@{{ $host }}.com:
+  insteadOf = ssh://git@{{ $host }}.com/
+  insteadOf = https://{{ $host }}.com/
+{{ end }}
+EOF
+
 generated_count=0
 
 {{ range $slug := ($cfg.selected_work_contexts | default list) }}
@@ -58,18 +67,23 @@ cat > "$generated_dir/work-{{ $slug }}.gitconfig" <<'EOF'
 
 [tag]
   gpgSign = {{ $signingReady }}
-{{- if has "gh" $providers }}
-{{- if (index $ssh "github_alias") }}
+{{- range $provider := $providers }}
+{{- $host := ternary "github" "gitlab" (eq $provider "gh") }}
+{{- $alias := index $ssh (printf "%s_alias" $host) | default (printf "%s.com-%s" $host $slug) }}
 
-[url "git@{{ index $ssh "github_alias" }}:"]
-  insteadOf = git@github.com:
+[url "git@{{ $alias }}:"]
+  insteadOf = git@{{ $host }}.com:
+  insteadOf = ssh://git@{{ $host }}.com/
+  insteadOf = https://{{ $host }}.com/
 {{- end }}
-{{- end }}
-{{- if has "gl" $providers }}
-{{- if (index $ssh "gitlab_alias") }}
+{{- range $provider := list "gh" "gl" }}
+{{- if not (has $provider $providers) }}
+{{- $host := ternary "github" "gitlab" (eq $provider "gh") }}
 
-[url "git@{{ index $ssh "gitlab_alias" }}:"]
-  insteadOf = git@gitlab.com:
+[url "git@{{ $host }}.com-disabled:"]
+  insteadOf = git@{{ $host }}.com:
+  insteadOf = ssh://git@{{ $host }}.com/
+  insteadOf = https://{{ $host }}.com/
 {{- end }}
 {{- end }}
 EOF

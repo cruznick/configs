@@ -1,0 +1,21 @@
+{{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
+# Resolve the most specific context, including linked worktrees.
+context=""
+best_length=0
+physical="$(pwd -P)/"
+common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)/"
+match_context() {
+  local root="$1" slug="$2"
+  if [[ "$physical" == "$root"* || "$common" == "$root"* ]]; then
+    if (( ${#root} > best_length )); then
+      context="$slug"
+      best_length=${#root}
+    fi
+  fi
+}
+{{ range $slug := $cfg.selected_work_contexts -}}
+{{ $ctx := index $cfg.work_contexts $slug -}}
+{{ range $dir := (index ((index $ctx "match") | default dict) "directories" | default list) -}}
+match_context {{ printf "%s/" (regexReplaceAll "^~" $dir $.chezmoi.homeDir | trimSuffix "/") | quote }} {{ $slug | quote }}
+{{ end -}}
+{{ end -}}

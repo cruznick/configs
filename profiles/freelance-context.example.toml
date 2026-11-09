@@ -1,0 +1,12 @@
+[context]
+slug = "freelance"
+enabled = true
+credentials = "personal"
+
+[providers]
+enabled = ["gh", "gl"]
+default = "gh"
+
+# Git name/email inherit your personal identity; override here if needed.
+[match]
+directories = ["~/repos/work/gh/freelance", "~/repos/work/gl/freelance"]

@@ -1,36 +1,37 @@
 [context]
 slug = "example-client"
 enabled = true
+credentials = "dedicated" # Use "personal" to reuse personal SSH/signing/CLI accounts.
 # name is optional
 
 [providers]
-enabled = ["gh", "gl"]
-default = "gh"
+enabled = ["gl"]
+default = "gl"
 
 [git]
 name = "Your Name"
 email = "you@example-client.com"
 # Public-key selector used by git SSH signing via op-ssh-sign.
-signing_key = "~/.ssh/signing-pubs/example-client-gh-signing.pub"
-signing_item = "ssh-sign-example-client-gh"
+signing_key = "~/.ssh/signing-pubs/example-client-gl-signing.pub"
+signing_item = "ssh-sign-example-client-gl"
 commit_gpgsign = true
 
 [match]
 directories = [
-  "~/repos/work/gh/example-client",
+  "~/repos/work/gl/example-client",
 ]
 
 [ssh]
 github_alias = "github.com-example-client"
+github_identity_file = "~/.ssh/signing-pubs/example-client-gh.pub"
+github_agent_item = ""
 gitlab_alias = "gitlab.com-example-client"
 # Public-key selectors used by SSH to choose the right 1Password key via the agent.
-github_identity_file = "~/.ssh/signing-pubs/example-client-gh.pub"
 gitlab_identity_file = "~/.ssh/signing-pubs/example-client-gl.pub"
-github_agent_item = ""
 gitlab_agent_item = ""
 
 [direnv]
 root_directories = [
-  "~/repos/work/gh/example-client",
+  "~/repos/work/gl/example-client",
 ]
-envrc_example_target = "~/repos/work/gh/example-client/.envrc.example"
+envrc_example_target = "~/repos/work/gl/example-client/.envrc.example"

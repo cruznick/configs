@@ -86,7 +86,7 @@ create_context() {
   mkdir -p "$WORK_CONTEXT_DIR"
 
   local slug name git_name git_email providers default_provider dirs primary_dir
-  local signing_key signing_item gh_alias gl_alias gh_identity gl_identity scaffold envrc_target
+  local signing_key signing_item gl_alias gl_identity gh_alias gh_identity credentials scaffold envrc_target
   local name_line="" normalized_dirs normalized_envrc_target
 
   slug="$(prompt "Slug")"
@@ -94,15 +94,21 @@ create_context() {
   name="$(prompt "Display name (optional)")"
   git_name="$(prompt "Git user.name")"
   git_email="$(prompt "Git user.email")"
-  providers="$(prompt "Enabled providers (comma-separated gh,gl)" "gh")"
-  default_provider="$(prompt "Default provider" "gh")"
+  credentials="$(prompt "Credentials (personal/dedicated)" "dedicated")"
+  [[ "$credentials" == personal || "$credentials" == dedicated ]] || { echo "Invalid credentials mode" >&2; exit 1; }
+  providers="$(prompt "Providers (gh,gl or gl)" "gl")"
+  [[ "$providers" == gl || "$providers" == gh || "$providers" == gh,gl || "$providers" == gl,gh ]] || { echo "Invalid providers" >&2; exit 1; }
+  if [[ "$slug" == kavak && ( "$providers" != gl || "$credentials" != dedicated ) ]]; then
+    echo "Kavak requires GitLab-only providers and dedicated credentials" >&2; exit 1
+  fi
+  default_provider="${providers%%,*}"
   dirs="$(prompt "Match directories (comma-separated)" "$HOME/repos/work/${default_provider}/${slug}")"
   primary_dir="${dirs%%,*}"
   signing_key="$(prompt "Git signing public-key selector path (optional)" "~/.ssh/signing-pubs/${slug}-${default_provider}-signing.pub")"
   signing_item="$(prompt "1Password git signing item (optional)" "ssh-sign-${slug}-${default_provider}")"
-  gh_alias="$(prompt "GitHub SSH alias (optional)" "github.com-${slug}")"
+  gh_alias="$(prompt "GitHub SSH alias" "github.com-${slug}")"
+  gh_identity="$(prompt "GitHub SSH public-key selector" "~/.ssh/signing-pubs/${slug}-gh.pub")"
   gl_alias="$(prompt "GitLab SSH alias (optional)" "gitlab.com-${slug}")"
-  gh_identity="$(prompt "GitHub SSH public-key selector file (optional)" "~/.ssh/signing-pubs/${slug}-gh.pub")"
   gl_identity="$(prompt "GitLab SSH public-key selector file (optional)" "~/.ssh/signing-pubs/${slug}-gl.pub")"
   scaffold="$(prompt "Create match directories now? (y/n)" "y")"
   envrc_target="$(prompt ".envrc.example target (optional)" "${primary_dir}/.envrc.example")"
@@ -123,6 +129,7 @@ create_context() {
 [context]
 slug = "${slug}"
 enabled = true
+credentials = "${credentials}"
 ${name_line}
 
 [providers]
@@ -141,10 +148,10 @@ directories = [$(csv_to_toml_array "$normalized_dirs")]
 
 [ssh]
 github_alias = "${gh_alias}"
-gitlab_alias = "${gl_alias}"
 github_identity_file = "${gh_identity}"
-gitlab_identity_file = "${gl_identity}"
 github_agent_item = ""
+gitlab_alias = "${gl_alias}"
+gitlab_identity_file = "${gl_identity}"
 gitlab_agent_item = ""
 
 [direnv]

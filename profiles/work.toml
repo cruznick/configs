@@ -5,7 +5,7 @@ name = "work"
 
 [providers]
 enabled = ["gh", "gl"]
-default = "gh"
+default = "gl"
 
 [cli]
 glab_config_dir = "glab-work"

@@ -1,7 +1,7 @@
 {{- $cfg := includeTemplate ".chezmoitemplates/effective-config.json.tmpl" . | fromJson -}}
 {{- $identity := $cfg.identity | default dict -}}
 {{- $git := $cfg.git | default dict -}}
-{{- $provider := $cfg.active_provider | default "gh" -}}
+{{- $provider := index $git "personal_signing_provider" | default "gh" -}}
 {{- $personalSigningKey := printf "~/.ssh/signing-pubs/personal-%s.pub" $provider -}}
 {{- $personalSigningKeyAbs := joinPath .chezmoi.homeDir ".ssh" "signing-pubs" (printf "personal-%s.pub" $provider) -}}
 {{- $signingEnabled := true -}}
@@ -20,7 +20,6 @@
 {{- if and $signingEnabled $cfg.optional_integrations.onepassword (stat $personalSigningKeyAbs) -}}
   {{- $personalSigningReady = true -}}
 {{- end -}}
-{{- $personalRewriteHost := ternary "gitlab.com-personal" "github.com-personal" (eq $provider "gl") -}}
 [pull]
   rebase = true
 
@@ -69,7 +68,7 @@
   gl-mr  = !glab-auto mr create --yes --push --remove-source-branch -f -t
   gl-mrd = !glab-auto mr update --draft
   gl-mrr = !glab-auto mr update --ready
-  gh-mr  = !gh pr create
+  gh-mr  = !gh-auto pr create
   df   = diff
 
 [user]
@@ -81,13 +80,9 @@
   # signingkey intentionally omitted until {{ $personalSigningKey }} exists and matches a 1Password SSH key item.
 {{- end }}
 
-{{- if eq $provider "gl" }}
-[url "git@{{ $personalRewriteHost }}:"]
-  insteadOf = git@gitlab.com:
-{{- else }}
-[url "git@{{ $personalRewriteHost }}:"]
-  insteadOf = git@github.com:
-{{- end }}
+# Personal routing is path-scoped so work contexts cannot compete with it.
+[includeIf "gitdir:{{ .chezmoi.homeDir }}/repos/personal/"]
+  path = "~/.config/dotfiles/generated/git/personal.gitconfig"
 
 # Local work contexts are path-scoped and generated from:
 #   ~/.config/dotfiles/work-contexts/*.toml
@@ -95,7 +90,7 @@
 {{- $ctx := index ($cfg.work_contexts | default dict) $slug | default dict }}
 {{- $match := (index $ctx "match") | default dict }}
 {{- range $dir := ((index $match "directories") | default list) }}
-{{- $expandedDir := regexReplaceAll "^~" $dir (env "HOME") | trimSuffix "/" }}
+{{- $expandedDir := regexReplaceAll "^~" $dir $.chezmoi.homeDir | trimSuffix "/" }}
 [includeIf "gitdir:{{ $expandedDir }}/"]
   path = {{ printf "~/.config/dotfiles/generated/git/work-%s.gitconfig" $slug | quote }}
 
