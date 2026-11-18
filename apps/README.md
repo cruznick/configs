@@ -1,4 +1,14 @@
-# Manual App Exports
+# Manual Apps and Exports
+
+Apps installed outside Homebrew are listed in [MANUAL-INSTALLS.md](MANUAL-INSTALLS.md),
+with their intended group and setup instructions. These are manual setup steps;
+bootstrap and `chezmoi apply` do not run them.
+
+## App Exports
+
+For fresh private exports of the current working apps, including
+[Bartender](bartender/README.md), use [dots-snapshot](../docs/SNAPSHOTS.md).
+The existing repo exports below are historical reference artifacts.
 
 This directory holds manual app-export artifacts that are kept in the repo for
 reference and optional hand-import on another machine.

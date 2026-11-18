@@ -394,12 +394,14 @@ class DotfilesTests(unittest.TestCase):
         rendered = self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl")
         self.assertIn("# group: personal", rendered)
         self.assertIn(personal_package, rendered)
+        self.assertIn('cask "tailscale-app"', rendered)
         self.assertNotIn(work_package, rendered)
 
         (self.contexts.parent / "overrides.toml").write_text('profile = "work"\n')
         rendered = self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl")
         self.assertNotIn("# group: personal", rendered)
         self.assertNotIn(personal_package, rendered)
+        self.assertNotIn('cask "tailscale-app"', rendered)
 
         (self.contexts.parent / "overrides.toml").write_text(
             'profile = "work"\n[optional_integrations]\nhomebrew_personal = true\n'
@@ -414,6 +416,31 @@ class DotfilesTests(unittest.TestCase):
         rendered = self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl")
         self.assertNotIn("# group: personal", rendered)
         self.assertNotIn(personal_package, rendered)
+
+    def test_externally_managed_casks_are_marked_and_filtered(self):
+        (self.contexts.parent / "overrides.toml").write_text(
+            'profile = "work"\n'
+            '[optional_integrations]\nhomebrew_work = true\n'
+            '[homebrew]\nexternally_managed_casks = ["google-chrome", "slack", "pritunl"]\n'
+        )
+        rendered = self.render(".chezmoitemplates/homebrew-active-brewfile.tmpl")
+        for cask in ("google-chrome", "slack", "pritunl"):
+            self.assertIn(f"# externally managed cask: {cask}", rendered)
+            self.assertNotIn(f'cask "{cask}"', rendered)
+        config = json.loads(self.render(".chezmoitemplates/homebrew-config.json.tmpl"))
+        self.assertEqual(config["externally_managed_casks"], ["google-chrome", "slack", "pritunl"])
+
+    def test_externally_managed_casks_are_not_cleanup_candidates(self):
+        self.configure_brewfile()
+        (self.source / "homebrew/Brewfile.core").write_text(
+            'brew "jq"\nbrew "dual"\nbrew "dep-only"\ncask "core-app"\n'
+            '# externally managed cask: managed-app\n'
+        )
+        self.state["casks"].append("managed-app")
+        self.save_state()
+        audit = json.loads(self.brew("audit", "--json").stdout)
+        self.assertIn("managed-app", audit["intentional_untracked"])
+        self.assertNotIn("managed-app", audit["untracked_casks"])
 
     def test_machine_local_overrides_and_environment_precedence(self):
         (self.contexts.parent / "overrides.toml").write_text(
@@ -728,7 +755,10 @@ main "$@"
         for script in [self.source / "install.sh", *self.source.glob("bin/executable_*")]:
             if script.suffix != ".tmpl":
                 with self.subTest(script=script.name):
-                    self.run_command([BASH, "-n", str(script)])
+                    if "python" in script.read_text().splitlines()[0]:
+                        compile(script.read_text(), str(script), "exec")
+                    else:
+                        self.run_command([BASH, "-n", str(script)])
         templates = [*self.source.glob(".chezmoiscripts/*.tmpl"), *self.source.glob("bin/*.tmpl")]
         for preset in ("mac-dev", "mac-minimal"):
             self.env["DOTFILES_MACHINE_PRESET"] = preset

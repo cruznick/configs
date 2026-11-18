@@ -1,5 +1,6 @@
 {{- $cfg := includeTemplate ".chezmoitemplates/homebrew-config.json.tmpl" . | fromJson -}}
 {{- $optional := (index $cfg "optional_integrations") | default dict -}}
+{{- $externalCasks := (index $cfg "externally_managed_casks") | default (list) -}}
 {{- $coreEnabled := true -}}
 {{- if hasKey $optional "homebrew_core" -}}
   {{- $coreEnabled = (index $optional "homebrew_core") -}}
@@ -30,30 +31,30 @@
 {{- if $coreEnabled }}
 
 # group: core
-{{ include "homebrew/Brewfile.core" }}
+{{ includeTemplate ".chezmoitemplates/homebrew-filter-casks.tmpl" (dict "content" (include "homebrew/Brewfile.core") "external" $externalCasks) }}
 {{ end -}}
 {{- if $devEnabled }}
 
 # group: dev
-{{ include "homebrew/Brewfile.dev" }}
+{{ includeTemplate ".chezmoitemplates/homebrew-filter-casks.tmpl" (dict "content" (include "homebrew/Brewfile.dev") "external" $externalCasks) }}
 {{ end -}}
 {{- if $appsEnabled }}
 
 # group: apps
-{{ include "homebrew/Brewfile.apps" }}
+{{ includeTemplate ".chezmoitemplates/homebrew-filter-casks.tmpl" (dict "content" (include "homebrew/Brewfile.apps") "external" $externalCasks) }}
 {{ end -}}
 {{- if $personalEnabled }}
 
 # group: personal
-{{ include "homebrew/Brewfile.personal" }}
+{{ includeTemplate ".chezmoitemplates/homebrew-filter-casks.tmpl" (dict "content" (include "homebrew/Brewfile.personal") "external" $externalCasks) }}
 {{ end -}}
 {{- if $extrasEnabled }}
 
 # group: extras
-{{ include "homebrew/Brewfile.extras" }}
+{{ includeTemplate ".chezmoitemplates/homebrew-filter-casks.tmpl" (dict "content" (include "homebrew/Brewfile.extras") "external" $externalCasks) }}
 {{ end -}}
 {{- if $workEnabled }}
 
 # group: work
-{{ include "homebrew/Brewfile.work" }}
+{{ includeTemplate ".chezmoitemplates/homebrew-filter-casks.tmpl" (dict "content" (include "homebrew/Brewfile.work") "external" $externalCasks) }}
 {{ end -}}

@@ -13,20 +13,18 @@
         "slug" ($slug | toString)
         "enabled" true)
       "providers" (dict
-        "enabled" ((index $co "platforms") | default (list))
-        "default" (((index $co "platforms") | default (list) | first) | default "gh"))
+        "enabled" (list "gl")
+        "default" "gl")
       "git" (dict
         "name" ((index ($cfg.identity | default dict) "git_name") | default "")
         "email" ((index $co "email") | default "")
-        "signing_key" (printf "~/.ssh/signing-pubs/%s-%s.pub" ((index $co "ssh_key_prefix") | default $slug) ((((index $co "platforms") | default (list) | first) | default "gh")))
-        "signing_item" (printf "ssh-sign-%s-%s" ((index $co "ssh_key_prefix") | default $slug) ((((index $co "platforms") | default (list) | first) | default "gh")))
+        "signing_key" (printf "~/.ssh/signing-pubs/%s-gl.pub" ((index $co "ssh_key_prefix") | default $slug))
+        "signing_item" (printf "ssh-sign-%s-gl" ((index $co "ssh_key_prefix") | default $slug))
         "commit_gpgsign" true)
       "match" (dict
         "directories" (list))
       "ssh" (dict
-        "github_alias" (printf "github.com-%s" $slug)
         "gitlab_alias" (printf "gitlab.com-%s" $slug)
-        "github_identity_file" (printf "~/.ssh/signing-pubs/%s-gh.pub" ((index $co "ssh_key_prefix") | default $slug))
         "gitlab_identity_file" (printf "~/.ssh/signing-pubs/%s-gl.pub" ((index $co "ssh_key_prefix") | default $slug)))
       "direnv" (dict
         "root_directories" (list)
@@ -142,6 +140,7 @@
   "work_context_dir" $workContextDir
   "env_overrides" $base.env_overrides
   "optional_integrations" $optionalIntegrations
+  "externally_managed_casks" (($cfg.homebrew | default dict).externally_managed_casks | default (list))
   "identity" $identity
   "providers" ((index $cfg "providers") | default dict)
   "git" ((index $cfg "git") | default dict)

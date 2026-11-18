@@ -39,6 +39,16 @@ cat >"$BREWFILE" <<'EOF'
 {{ $brewfile }}
 EOF
 
+# Homebrew now requires explicit trust for third-party taps. Trust only taps
+# declared by the active Brewfile, so package installs remain reviewable.
+while IFS= read -r tap_name; do
+  [[ -z "$tap_name" ]] && continue
+  log "Trusting declared Homebrew tap: $tap_name"
+  if ! brew trust "$tap_name"; then
+    warn "Could not trust tap $tap_name; brew bundle may fail for its formulae"
+  fi
+done < <(sed -nE 's/^[[:space:]]*tap[[:space:]]+"([^"]+)".*/\1/p' "$BREWFILE")
+
 log "Installing missing packages from declared Brewfile groups"
 if brew bundle install --no-upgrade --file="$BREWFILE"; then
   echo "Declared Homebrew packages are installed"

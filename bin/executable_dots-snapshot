@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+"""Create and verify incremental snapshots of durable macOS settings."""
+
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import plistlib
+import shutil
+import sqlite3
+import stat
+import subprocess
+import sys
+import time
+
+
+HOME_ITEMS = [
+    ".config/dotfiles", ".config/chezmoi/chezmoi.toml", ".config/git",
+    ".config/1Password", ".config/op/config", ".config/op/plugins",
+    ".config/op/plugins.sh", ".config/glab-personal", ".config/glab-kavak",
+    ".config/gh-personal", ".config/acli", ".config/pip", ".config/uv",
+    ".config/zed", ".config/herdr/config.toml",
+    ".config/gcloud/configurations", ".config/gcloud/active_config",
+    ".config/raycast/extensions",
+    ".ssh", ".aws/config", ".aws/credentials", ".kube/config", ".kube/kubectx",
+    ".docker/config.json",
+    ".gitconfig", ".gitignore", ".gitignore_global", ".netrc",
+    ".zshenv", ".zprofile", ".zshrc", ".bashrc", ".bash_profile",
+    ".tool-versions", ".npmrc", ".claude.json",
+    ".claude/settings.json", ".claude/settings.local.json",
+    ".claude/CLAUDE.md", ".claude/mcp.json", ".claude/skills", ".claude/hooks",
+    ".claude/plugins/installed_plugins.json", ".claude/plugins/known_marketplaces.json",
+    ".codex/config.toml", ".codex/sol.config.toml", ".codex/rules", ".codex/skills",
+    ".codex/hooks.json", ".cursor/mcp.json", ".cursor/hooks.json",
+    ".kavak-cli.sh", ".local/bin", "bin", "repos/work/gl/kavak/.envrc",
+    "Library/LaunchAgents/io.dotfiles.settings-snapshot.plist",
+]
+APP_SUPPORT = [
+    "Claude/claude_desktop_config.json",
+    "Code/User/settings.json", "Code/User/keybindings.json", "Code/User/snippets",
+    "Cursor/User/settings.json", "Cursor/User/keybindings.json", "Cursor/User/snippets",
+    "com.mitchellh.ghostty",
+    "Rectangle Pro", "com.elgato.StreamDeck",
+    "Elgato/StreamDeck", "eqMac", "com.bitgapp.eqmac",
+    "com.raycast.macos/settings.db", "com.raycast.macos/settings_v2.db",
+    "com.raycast.macos/node_extensions.db", "com.raycast.shared",
+    "LogiOptionsPlus/settings.db", "LogiOptionsPlus/macros.db",
+    "LogiOptionsPlus/privacy_settings.db",
+    "ccdeck-desktop/desktop-state.json", "ccdeck-desktop/Preferences",
+]
+PREFERENCE_DOMAINS = [
+    "com.surteesstudios.Bartender",
+    "com.bjango.istatmenus", "com.bjango.istatmenus.agent",
+    "com.bjango.istatmenus.menubar.7", "com.bjango.istatmenus.status",
+    "com.knollsoft.Hookshot", "com.bitgapp.eqmac", "com.elgato.StreamDeck",
+]
+GENERATED_DIRS = {
+    "node_modules", "__pycache__", ".venv", "venv", "virtenv",
+    ".Trash", "Cache", "Caches", "cache", "CachedData", "Code Cache",
+    "GPUCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache",
+    "Crashpad", "tmp", ".tmp", "logs", "thread-writer-locks",
+    "app-server-control", "tui-thread-reference-capabilities",
+}
+
+
+def digest(path):
+    result = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            result.update(chunk)
+    return result.hexdigest()
+
+
+def write_json(path, value):
+    path.write_text(json.dumps(value, indent=2) + "\n")
+
+
+def verify(root):
+    """Validate the complete file set, hashes and preserved symlink targets."""
+    manifest = json.loads((root / "manifest.json").read_text())
+    expected = manifest["files"]
+    actual = {
+        str(p.relative_to(root)) for p in root.rglob("*")
+        if (p.is_file() or p.is_symlink()) and p != root / "manifest.json"
+    }
+    if actual != set(expected):
+        raise RuntimeError("Snapshot file set differs from manifest")
+    for name, entry in expected.items():
+        path = root / name
+        if entry["kind"] == "symlink":
+            if not path.is_symlink() or os.readlink(path) != entry["target"]:
+                raise RuntimeError(f"Symlink verification failed: {name}")
+        elif path.is_symlink() or digest(path) != entry["sha256"]:
+            raise RuntimeError(f"Checksum verification failed: {name}")
+    print(f"Verified {len(expected)} snapshot files/links: {root}")
+
+
+def create(root, home, repos=()):
+    if sys.platform != "darwin":
+        raise RuntimeError("Snapshot creation currently supports macOS only")
+    root = root.expanduser().absolute()
+    home = home.expanduser().resolve()
+    # Never recurse into the snapshot while copying a selected source.
+    selections = HOME_ITEMS + ["Library/Application Support/" + n for n in APP_SUPPORT]
+    # Apple service preferences include protected address-book/identity databases.
+    # Capture third-party app preferences plus global UI preferences only.
+    preferences = home / "Library/Preferences"
+    if preferences.exists():
+        selections += [
+            str(p.relative_to(home)) for p in sorted(preferences.glob("*.plist"))
+            if not p.name.startswith(("com.apple.", "group.com.apple.", "systemgroup.com.apple."))
+        ]
+    repo_selections = []
+    for repo in repos:
+        repo = repo.expanduser().resolve()
+        if not (repo / ".git").exists():
+            raise RuntimeError(f"Not a repository root: {repo}")
+        relative = str(repo.relative_to(home))
+        repo_selections.append(relative)
+    selections += repo_selections
+    for name in selections:
+        source = home / name
+        if root == source or source in root.parents:
+            raise RuntimeError(f"Output must be outside captured paths: {source}")
+    if root.exists():
+        raise RuntimeError("Output already exists; choose a new snapshot directory")
+    previous = sorted(
+        (p for p in root.parent.glob("current-state-*") if (p / "manifest.json").is_file()),
+        key=lambda p: p.stat().st_mtime,
+    )
+    prior = previous[-1] if previous else None
+    if prior:
+        verify(prior)
+    os.umask(0o077)
+    root.mkdir(parents=True, mode=0o700)
+    coverage = {
+        "missing": [], "excluded": [], "commands": {}, "sqlite": [],
+        "repositories": repo_selections, "previous": str(prior) if prior else None,
+        "omitted_by_design": [
+            "agent sessions/history/databases", "repositories unless explicitly requested",
+            "browser profiles", "Keychain", "app binaries", "caches",
+            "Raycast clipboard/AI/activity history", "iStat history",
+        ],
+    }
+
+    def copy(source, target, in_repo=False):
+        rel = str(source.relative_to(home))
+        mode = source.lstat().st_mode
+        if stat.S_ISLNK(mode):
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.symlink_to(os.readlink(source))
+        elif stat.S_ISDIR(mode):
+            if source.name in GENERATED_DIRS and source.name != ".git":
+                coverage["excluded"].append(rel)
+                return
+            target.mkdir(parents=True, exist_ok=True)
+            for child in sorted(source.iterdir()):
+                try:
+                    copy(child, target / child.name, in_repo)
+                except FileNotFoundError:
+                    # A selected source disappearing is reported, never silent.
+                    raise RuntimeError(f"Source disappeared during capture: {child}")
+        elif stat.S_ISREG(mode):
+            # Repo lockfiles (package-lock.json, uv.lock, etc.) are source data.
+            if not in_repo and (
+                source.name.endswith(("-wal", "-shm", ".lock", ".sock"))
+                or source.name in {"SingletonLock", "SingletonCookie", "SingletonSocket"}
+            ):
+                coverage["excluded"].append(rel)
+                return
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with source.open("rb") as stream:
+                is_sqlite = stream.read(16) == b"SQLite format 3\x00"
+            if is_sqlite and not in_repo:
+                # Include committed WAL data without copying a live database unsafely.
+                deadline = time.monotonic() + 60
+                def progress(status, remaining, total):
+                    if time.monotonic() > deadline:
+                        raise RuntimeError(f"SQLite backup timed out: {source}")
+                with sqlite3.connect(source.as_uri() + "?mode=ro", uri=True) as src:
+                    with sqlite3.connect(target) as dst:
+                        src.backup(dst, pages=256, progress=progress)
+                        if dst.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
+                            raise RuntimeError(f"SQLite validation failed: {source}")
+                coverage["sqlite"].append(rel)
+            else:
+                # Snapshot each regular file from a stable read.
+                for attempt in range(3):
+                    before = source.stat()
+                    shutil.copyfile(source, target)
+                    after = source.stat()
+                    if (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns):
+                        if digest(source) == digest(target):
+                            break
+                else:
+                    raise RuntimeError(f"File kept changing during capture: {source}")
+            target.chmod(stat.S_IMODE(mode) & 0o700)
+        else:
+            coverage["excluded"].append(rel + " (socket or special file)")
+
+    for name in selections:
+        source = home / name
+        if source.exists() or source.is_symlink():
+            print(f"Capturing {name}", flush=True)
+            copy(source, root / "home" / name, in_repo=name in repo_selections)
+        else:
+            coverage["missing"].append(name)
+
+    exports = root / "app-preferences"
+    exports.mkdir()
+    for domain in PREFERENCE_DOMAINS:
+        path = exports / (domain + ".plist")
+        result = subprocess.run(["defaults", "export", domain, str(path)], capture_output=True)
+        if result.returncode:
+            if (home / "Library/Preferences" / (domain + ".plist")).exists():
+                raise RuntimeError(f"Could not export preferences: {domain}")
+            coverage["missing"].append("preferences:" + domain)
+            continue
+        plistlib.loads(path.read_bytes())
+
+    inventory = root / "inventory"
+    inventory.mkdir()
+    commands = {
+        "brew-formulae.txt": ["brew", "list", "--formula"],
+        "brew-casks.txt": ["brew", "list", "--cask"],
+        "brew-taps.txt": ["brew", "tap"],
+        "brew-versions.txt": ["brew", "list", "--versions"],
+        "macos.txt": ["sw_vers"],
+    }
+    env = dict(os.environ, HOMEBREW_NO_AUTO_UPDATE="1", HOMEBREW_NO_ANALYTICS="1")
+    for name, args in commands.items():
+        result = subprocess.run(args, capture_output=True, env=env, timeout=120)
+        coverage["commands"][name] = result.returncode
+        (inventory / name).write_bytes(result.stdout)
+        if result.returncode:
+            (inventory / (name + ".stderr")).write_bytes(result.stderr)
+            raise RuntimeError(f"Inventory command failed: {' '.join(args)}")
+    brewfile = []
+    for filename, kind in [
+        ("brew-taps.txt", "tap"), ("brew-formulae.txt", "brew"), ("brew-casks.txt", "cask"),
+    ]:
+        for package in (inventory / filename).read_text().splitlines():
+            if package:
+                brewfile.append(kind + " " + json.dumps(package))
+    (inventory / "Brewfile.installed").write_text("\n".join(brewfile) + "\n")
+    apps = []
+    for directory in [Path("/Applications"), home / "Applications"]:
+        if not directory.exists():
+            continue
+        for app in sorted(directory.glob("*.app")):
+            info = app / "Contents/Info.plist"
+            if info.is_file():
+                data = plistlib.loads(info.read_bytes())
+                apps.append({
+                    "path": str(app), "id": data.get("CFBundleIdentifier"),
+                    "version": data.get("CFBundleShortVersionString"),
+                    "build": data.get("CFBundleVersion"),
+                })
+    write_json(inventory / "applications.json", apps)
+    write_json(root / "coverage.json", coverage)
+    (root / "RESTORE.md").write_text(
+        "# Durable-settings recovery snapshot\n\n"
+        f"Source home: `{home}`\n\n"
+        "Run `dots-snapshot verify SNAPSHOT` before restoring. Review coverage.json.\n"
+        "This is a private plaintext snapshot: it contains credentials and work data.\n"
+        "Keep it private; encrypt it before copying to shared or external storage.\n\n"
+        "Repositories are included only when explicitly requested; see coverage.json. "
+        "Those copies include Git metadata and uncommitted files. "
+        "Symlinks are preserved, never followed. "
+        "Generated caches, dependency directories and virtual environments are omitted.\n"
+        "Reinstall packages using the configs repository and inventory/Brewfile.installed. "
+        "Observed versions are recorded, not guaranteed available for reinstall.\n\n"
+        "home contains selected durable settings, including Claude/Codex configuration. "
+        "Agent sessions and history are intentionally excluded. SQLite "
+        "databases were captured with SQLite's backup API and checked. Running apps "
+        "may change after capture; this is not an atomic full-disk snapshot. "
+        "Quit affected apps before selectively restoring. Never overwrite live databases. "
+        "Keychain, browser profiles, app binaries, permissions and unlisted app data "
+        "are not included. Reauthenticate and reinstall managed software normally.\n\n"
+        "app-preferences contains fresh defaults exports. Check app versions in "
+        "inventory/applications.json before importing. For Bartender, prefer the same "
+        "major version; do not import old-version preferences wholesale. Back up target "
+        "settings, quit the app, then use `defaults import DOMAIN FILE` when appropriate.\n\n"
+        "If the home path changes, review Git includes, worktree metadata, symlinks and "
+        "text configuration paths. Do not rewrite credentials, Git objects or databases. "
+        "Old backup-only files/history are intentionally not part of this new baseline.\n"
+        "\nUnchanged files may be hard-linked to earlier snapshots. Never edit files "
+        "inside a snapshot; copy them out before restoring or changing them. Each "
+        "snapshot can be restored independently; deleting an older snapshot does "
+        "not delete files still linked by a newer one.\n"
+    )
+    files = {}
+    shared_bytes = 0
+    for path in sorted(root.rglob("*")):
+        name = str(path.relative_to(root))
+        if path.is_symlink():
+            files[name] = {"kind": "symlink", "target": os.readlink(path)}
+        elif path.is_file():
+            files[name] = {"kind": "file", "sha256": digest(path), "bytes": path.stat().st_size}
+            old = prior / name if prior else None
+            if old and old.is_file() and not old.is_symlink():
+                if (
+                    stat.S_IMODE(path.stat().st_mode) == stat.S_IMODE(old.stat().st_mode)
+                    and digest(old) == files[name]["sha256"]
+                ):
+                    replacement = path.with_name(path.name + ".hardlink-tmp")
+                    os.link(old, replacement)
+                    os.replace(replacement, path)
+                    shared_bytes += path.stat().st_size
+    write_json(root / "manifest.json", {
+        "created_at": datetime.now(timezone.utc).isoformat(), "home": str(home), "files": files,
+    })
+    verify(root)
+    print(f"Shared {shared_bytes:,} unchanged bytes with the previous snapshot")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=True)
+    new = sub.add_parser("create")
+    new.add_argument("--output", type=Path, default=Path.home() / "Backups" / (
+        "current-state-" + datetime.now().strftime("%Y%m%d-%H%M%S")))
+    new.add_argument("--repo", type=Path, action="append", default=[],
+                     help="Explicitly include this local repository; repeat for more")
+    new.add_argument("--monthly", action="store_true",
+                     help="Use one verified snapshot per month under ~/Backups")
+    new.add_argument("--home", type=Path, default=Path.home(), help=argparse.SUPPRESS)
+    check = sub.add_parser("verify")
+    check.add_argument("snapshot", type=Path)
+    args = parser.parse_args()
+    try:
+        if args.command == "verify":
+            verify(args.snapshot.expanduser().absolute())
+        else:
+            if args.monthly:
+                args.output = args.home / "Backups" / ("current-state-" + datetime.now().strftime("%Y-%m"))
+                if args.output.exists():
+                    verify(args.output)
+                    print("This month's snapshot already exists; no duplicate created.")
+                    return 0
+            create(args.output, args.home, args.repo)
+    except Exception as exc:
+        print(f"Snapshot failed: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

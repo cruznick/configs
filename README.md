@@ -88,7 +88,15 @@ Notes:
 Profile files resolve against the chezmoi source directory. Rendering and applying
 the configuration work from any current directory.
 
-## Manual App Exports
+## Manual Apps and Exports
+
+For a fresh backup of the working machine, see
+[current-state snapshots](docs/SNAPSHOTS.md). The snapshot helper captures current
+app preferences and configuration into a private local backup.
+
+Apps installed outside Homebrew are tracked in
+[apps/MANUAL-INSTALLS.md](apps/MANUAL-INSTALLS.md), starting with ccdeck.
+Their installation is manual and is not run by bootstrap or `chezmoi apply`.
 
 Manual app-export artifacts live under `apps/`.
 
@@ -174,6 +182,14 @@ Operational rule:
 - Version-pinned runtimes and CLIs (`nodejs`, `python`, `golang`, `terraform`, `kubectl`, `helm`) are managed by asdf, not Homebrew.
 
 See [docs/HOMEBREW.md](docs/HOMEBREW.md).
+
+For terminal-scoped Claude/Codex login and Bedrock modes and package update
+commands, see [docs/AI-MODE.md](docs/AI-MODE.md).
+
+## Graphify
+
+Graphify's CLI and Codex skill are installed through `uv` on macOS. See
+[docs/GRAPHIFY.md](docs/GRAPHIFY.md) for setup and retry instructions.
 
 The asdf setup hook supports the executable-based asdf (0.16+) and reruns when
 `dot_tool-versions` changes. See [docs/ASDF.md](docs/ASDF.md) for setup and retries.

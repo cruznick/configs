@@ -20,6 +20,27 @@ The install hook uses that rendered Brewfile during `chezmoi apply`. Brewfile
 rendering reads only profiles and `~/.config/dotfiles/overrides.toml`; it does
 not parse private work-context files.
 
+Before installing, the hook and `dots-brew sync`/`dots-brew update` trust each
+tap declared in the active Brewfile with `brew trust <tap>`. This is limited to
+declared taps, so formulae from those taps can install without a manual trust
+step.
+
+### Apps installed by device management
+
+When MDM installs and updates casks, list them in the machine-local override so
+Homebrew neither installs nor removes them:
+
+```toml
+[homebrew]
+externally_managed_casks = ["google-chrome", "slack", "pritunl"]
+```
+
+The active Brewfile replaces those cask declarations with external-management
+markers. The audit reports installed marked casks as intentional, and cleanup
+does not treat them as removal candidates. Do not remove the managed apps from
+the device. Tailscale is personal-only: its cask is in `Brewfile.personal`, not
+the default apps or work groups.
+
 ## Group Semantics
 
 Use the narrowest group that describes why the package should be present:
@@ -36,6 +57,7 @@ Examples:
 - Put `git`, `jq`, `ripgrep`, and shell ergonomics in `core`.
 - Put `docker`, `gh`, `awscli`, and Kubernetes tools in `dev`.
 - Put normal daily desktop apps such as browsers, terminal apps, and productivity apps in `apps`.
+- Tidal, Spotify, eqMac, and Elgato Stream Deck are shared apps in `apps`, available to both work and personal profiles when that group is enabled.
 - Put personal-only tools such as `beets`, `balenaetcher`, game-adjacent apps, personal media utilities, and remote-support tools in `personal` when they should not follow a work profile.
 - Put large optional apps or tools that are useful only on selected machines in `extras`.
 - Put company-required apps and CLIs in `work`.
@@ -43,6 +65,10 @@ Examples:
 If a package is installed briefly for testing, it does not need to be declared.
 If it should survive rebuilds or new-machine setup, declare it in one of these
 Brewfiles.
+
+For apps installed outside Homebrew, use
+[apps/MANUAL-INSTALLS.md](../apps/MANUAL-INSTALLS.md). It records manual install
+instructions and intended groups without adding them to automatic package sync.
 
 ## Machine Selection
 

@@ -118,6 +118,12 @@ EXCLUDED_REASON["tcl-tk"]="keg-only build dep (Python/pyenv)"
 EXCLUDED_REASON["tcl-tk@8"]="keg-only build dep (Python/pyenv)"
 EXCLUDED_REASON["zlib"]="keg-only build dep"
 
+# Casks deliberately omitted from the active Brewfile because device management
+# installs and updates them outside Homebrew. The active renderer emits markers.
+while IFS= read -r pkg; do
+  [[ -z "$pkg" ]] || EXCLUDED_REASON["$pkg"]="managed externally (for example, by device enrollment)"
+done < <(sed -n 's/^[[:space:]]*# externally managed cask: //p' "$BREWFILE")
+
 # ── Get installed packages ────────────────────────────────────────────────────
 # Untracked drift should consider only packages intentionally installed by the
 # user; missing drift should consider everything installed, including formulae
@@ -139,6 +145,7 @@ MISSING_CASKS="$(comm -13 <(echo "$INSTALLED_CASKS") <(echo "$TRACKED_CASKS"))"
 MISSING="$(printf '%s\n%s\n' "$MISSING_FORMULAE" "$MISSING_CASKS" | sed '/^$/d' | sort -u)"
 
 REAL_UNTRACKED_FORMULAE=""
+REAL_UNTRACKED_CASKS=""
 INTENTIONAL=""
 while IFS= read -r pkg; do
   [[ -z "$pkg" ]] && continue
@@ -148,7 +155,15 @@ while IFS= read -r pkg; do
     REAL_UNTRACKED_FORMULAE+="$pkg"$'\n'
   fi
 done <<< "$UNTRACKED_FORMULAE"
-REAL_UNTRACKED="$(printf '%s\n%s\n' "$REAL_UNTRACKED_FORMULAE" "$UNTRACKED_CASKS" | sed '/^$/d' | sort -u)"
+while IFS= read -r pkg; do
+  [[ -z "$pkg" ]] && continue
+  if [[ -n "${EXCLUDED_REASON[$pkg]+_}" ]]; then
+    INTENTIONAL+="$pkg"$'\n'
+  else
+    REAL_UNTRACKED_CASKS+="$pkg"$'\n'
+  fi
+done <<< "$UNTRACKED_CASKS"
+REAL_UNTRACKED="$(printf '%s\n%s\n' "$REAL_UNTRACKED_FORMULAE" "$REAL_UNTRACKED_CASKS" | sed '/^$/d' | sort -u)"
 
 json_array() {
   printf '%s' "${1:-}" | jq -Rsc 'split("\n") | map(select(length > 0))'
@@ -159,7 +174,7 @@ if [[ $OUTPUT_JSON -eq 1 ]]; then
     --argjson tracked "$(json_array "$TRACKED")" \
     --argjson untracked "$(json_array "$REAL_UNTRACKED")" \
     --argjson untracked_formulae "$(json_array "$REAL_UNTRACKED_FORMULAE")" \
-    --argjson untracked_casks "$(json_array "$UNTRACKED_CASKS")" \
+    --argjson untracked_casks "$(json_array "$REAL_UNTRACKED_CASKS")" \
     --argjson intentional "$(json_array "$INTENTIONAL")" \
     --argjson missing "$(json_array "$MISSING")" \
     '{

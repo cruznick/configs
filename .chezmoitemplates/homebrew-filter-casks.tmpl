@@ -1,0 +1,17 @@
+{{- $content := .content -}}
+{{- $external := .external | default (list) -}}
+{{- $lines := list -}}
+{{- range $line := splitList "\n" $content -}}
+  {{- $trimmed := trim $line -}}
+  {{- if and (hasPrefix "cask " $trimmed) (regexMatch `^cask\s+"[^"]+"` $trimmed) -}}
+    {{- $name := regexReplaceAll `^cask\s+"([^"]+)".*$` $trimmed "$1" -}}
+    {{- if has $name $external -}}
+      {{- $lines = append $lines (printf "# externally managed cask: %s" $name) -}}
+    {{- else -}}
+      {{- $lines = append $lines $line -}}
+    {{- end -}}
+  {{- else -}}
+    {{- $lines = append $lines $line -}}
+  {{- end -}}
+{{- end -}}
+{{- join "\n" $lines -}}

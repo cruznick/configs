@@ -7,5 +7,6 @@
   "override_file" $base.override_file
   "env_overrides" $base.env_overrides
   "optional_integrations" $base.config.optional_integrations
+  "externally_managed_casks" (($base.config.homebrew | default dict).externally_managed_casks | default (list))
   "merge_order" $base.merge_order
   | toPrettyJson -}}

@@ -89,6 +89,25 @@ with_brewfile() {
   "$@" "$tmp"
 }
 
+trust_declared_taps() {
+  local file="$1" tap_name
+  while IFS= read -r tap_name; do
+    [[ -z "$tap_name" ]] && continue
+    echo "Trusting declared Homebrew tap: $tap_name"
+    brew trust "$tap_name"
+  done < <(sed -nE 's/^[[:space:]]*tap[[:space:]]+"([^"]+)".*/\1/p' "$file")
+}
+
+install_with_brewfile() {
+  local mode="$1" file="$2"
+  trust_declared_taps "$file"
+  if [[ "$mode" == "upgrade" ]]; then
+    brew bundle install --upgrade --file "$file"
+  else
+    brew bundle install --no-upgrade --file "$file"
+  fi
+}
+
 plan_with_brewfile() {
   local file="$1"
   echo "dots-brew plan"
@@ -204,12 +223,12 @@ case "$cmd" in
     ;;
   sync)
     require_brew
-    with_brewfile brew bundle install --no-upgrade --file
+    with_brewfile install_with_brewfile no-upgrade
     ;;
   update)
     require_brew
     brew update
-    with_brewfile brew bundle install --upgrade --file
+    with_brewfile install_with_brewfile upgrade
     ;;
   plan)
     require_brew

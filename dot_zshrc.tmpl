@@ -10,6 +10,13 @@
 # =============================================================================
 # BASIC ENV
 # =============================================================================
+# A different TTY starts in login mode even if this shell was launched from a
+# terminal that had switched to Bedrock. Nested shells on the same TTY inherit it.
+if [[ "${AI_MODE_TTY:-}" != "${TTY:-}" ]]; then
+  unset AI_MODE_CLAUDE AI_MODE_CODEX
+  export AI_MODE_TTY="${TTY:-}"
+fi
+
 if command -v code >/dev/null; then
   export EDITOR="code"
 elif command -v nvim >/dev/null; then
@@ -78,6 +85,10 @@ autoload -Uz compinit && compinit
 {{ if $optional.zinit -}}
 (( $+functions[zinit] )) && zinit cdreplay -q
 {{ end -}}
+
+if command -v harness >/dev/null 2>&1 && command -v register-python-argcomplete >/dev/null 2>&1; then
+  eval "$(register-python-argcomplete --shell zsh harness)"
+fi
 
 # =============================================================================
 # PROMPT
@@ -155,6 +166,7 @@ alias cold='colima delete'
 # AI CLIs
 alias cc='claude'
 alias cx='codex'
+source "$HOME/bin/ai-mode"
 
 # Dotfiles
 alias dots-apply='chezmoi apply'

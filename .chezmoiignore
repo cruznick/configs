@@ -18,7 +18,7 @@ tests/**
 .github/
 .github/**
 
-# Manual app-export artifacts — reference only, never deployed by chezmoi
+# Manual app instructions and exports — reference only, never deployed by chezmoi
 apps/**
 apps/
 

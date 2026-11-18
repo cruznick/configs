@@ -6,7 +6,7 @@ default_machine_preset = "mac-dev"
 default_provider = "gh"
 
 [profiles.work]
-default_provider = "gh"
+default_provider = "gl"
 
 [identity]
 git_name = ""
@@ -34,4 +34,7 @@ homebrew_work = false
 zinit = true
 asdf = true
 ssh_key_export = true
+
+[homebrew]
+externally_managed_casks = []
 onepassword = true
