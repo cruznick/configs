@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Restore the AWS profile only; Claude/Codex Bedrock routing is terminal-scoped
+# through ai-mode and must not be written to global tool settings.
+set -euo pipefail
+
+RESTORE_ROOT="${1:-$HOME/Downloads/work-mac-reinstall-2026-11-08-restore}"
+AWS_SOURCE="$RESTORE_ROOT/home/.aws/config"
+
+[[ -f "$AWS_SOURCE" ]] || {
+  echo "Missing restore source: $AWS_SOURCE" >&2
+  exit 1
+}
+
+mkdir -p "$HOME/.aws"
+if [[ -e "$HOME/.aws/config" ]]; then
+  echo "Keeping existing ~/.aws/config"
+else
+  cp "$AWS_SOURCE" "$HOME/.aws/config"
+  chmod 600 "$HOME/.aws/config"
+  echo "Restored ~/.aws/config"
+fi
+
+echo "Next, switch this terminal with: ai-mode bedrock"
+echo "Authenticate with: aws sso login --profile platform"
