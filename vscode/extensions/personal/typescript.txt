@@ -1,0 +1,2 @@
+# VS Code extension ID@version inventory; no extension packages are stored.
+ms-vscode.vscode-typescript-next@6.0.20260416

@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ includeTemplate ".chezmoitemplates/cli-context.sh.tmpl" . }}
+
+usage() {
+  cat <<'EOF'
+Usage:
+  dots-vscode [launch] [--language NAME] [VS Code arguments...]
+  dots-vscode extensions [--language NAME]
+  dots-vscode capture [--language NAME]
+
+The active dotfiles profile and matching work-directory context select the
+isolated VS Code user-data directory and native profile. Extension files are
+version inventories only; extensions are installed manually.
+EOF
+}
+
+die() { printf 'dots-vscode: %s\n' "$*" >&2; exit 2; }
+
+SOURCE_DIR="$(chezmoi source-path)"
+if [[ -n "${DOTFILES_PROFILE:-}" ]]; then
+  PERSONA="$DOTFILES_PROFILE"
+else
+  PERSONA="$(dots-debug --json | jq -er '.active_profile')"
+fi
+[[ "$PERSONA" == personal || "$PERSONA" == work ]] || die "unsupported active profile: $PERSONA"
+
+APP_SUPPORT="$HOME/Library/Application Support/Code-dotfiles"
+USER_DATA_DIR="$APP_SUPPORT/$PERSONA"
+EXTENSIONS_DIR="$USER_DATA_DIR/extensions"
+BASE_EXTENSION_ROOT="$SOURCE_DIR/vscode/extensions/$PERSONA"
+EXTENSION_ROOT="$BASE_EXTENSION_ROOT"
+PROFILE="$PERSONA"
+CONTEXT_NAME=""
+LANGUAGE=""
+COMMAND="launch"
+
+if [[ -n "$context" ]]; then
+  CONTEXT_NAME="$context"
+  EXTENSION_ROOT="$BASE_EXTENSION_ROOT/$CONTEXT_NAME"
+  PROFILE="$PERSONA-$CONTEXT_NAME"
+fi
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+if [[ "${1:-}" == "launch" || "${1:-}" == "extensions" || "${1:-}" == "capture" ]]; then
+  COMMAND="$1"
+  shift
+fi
+
+ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --language)
+      [[ $# -ge 2 ]] || die "--language requires a name"
+      LANGUAGE="${2,,}"
+      shift 2
+      ;;
+    --)
+      shift
+      ARGS+=("$@")
+      break
+      ;;
+    *)
+      if [[ "$COMMAND" == launch ]]; then
+        ARGS+=("$1")
+        shift
+      else
+        die "unexpected argument: $1"
+      fi
+      ;;
+  esac
+done
+
+if [[ -n "$LANGUAGE" ]]; then
+  [[ "$LANGUAGE" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || die "invalid language name: $LANGUAGE"
+  if [[ -n "$CONTEXT_NAME" ]]; then
+    PROFILE="$PERSONA-$CONTEXT_NAME-$LANGUAGE"
+  else
+    PROFILE="$PERSONA-$LANGUAGE"
+  fi
+fi
+
+VSCODE_CLI=""
+if [[ "$COMMAND" != extensions ]]; then
+  VSCODE_CLI="$(command -v code || true)"
+  if [[ -z "$VSCODE_CLI" && -x "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" ]]; then
+    VSCODE_CLI="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+  fi
+  [[ -n "$VSCODE_CLI" ]] || die "VS Code Stable CLI not found; install the 'code' shell command first"
+fi
+
+case "$COMMAND" in
+  launch)
+    exec "$VSCODE_CLI" \
+      --user-data-dir "$USER_DATA_DIR" \
+      --extensions-dir "$EXTENSIONS_DIR" \
+      --profile "$PROFILE" \
+      "${ARGS[@]}"
+    ;;
+  extensions)
+    FILES=("$BASE_EXTENSION_ROOT/global.txt")
+    if [[ -n "$CONTEXT_NAME" ]]; then
+      FILES+=("$BASE_EXTENSION_ROOT/$CONTEXT_NAME/global.txt")
+    fi
+    if [[ -n "$LANGUAGE" ]]; then
+      FILES+=("$BASE_EXTENSION_ROOT/$LANGUAGE.txt")
+      if [[ -n "$CONTEXT_NAME" ]]; then
+        FILES+=("$BASE_EXTENSION_ROOT/$CONTEXT_NAME/$LANGUAGE.txt")
+      fi
+    fi
+    for file in "${FILES[@]}"; do
+      [[ -f "$file" ]] || [[ "$file" != "$BASE_EXTENSION_ROOT/global.txt" ]] || die "missing extension list: $file"
+    done
+    awk -F@ '
+      /^[[:space:]]*($|#)/ { next }
+      NF >= 2 { versions[$1] = $0 }
+      END { for (id in versions) print versions[id] }
+    ' "${FILES[@]}" | sort -f
+    ;;
+  capture)
+    mkdir -p "$EXTENSION_ROOT"
+    DESTINATION="$EXTENSION_ROOT/global.txt"
+    if [[ -n "$LANGUAGE" ]]; then
+      DESTINATION="$EXTENSION_ROOT/$LANGUAGE.txt"
+    fi
+    TEMP_FILE="$(mktemp "${TMPDIR:-/tmp}/dots-vscode-extensions.XXXXXX")"
+    BASELINE_FILE="$(mktemp "${TMPDIR:-/tmp}/dots-vscode-baseline.XXXXXX")"
+    trap 'rm -f "$TEMP_FILE" "$BASELINE_FILE"' EXIT
+
+    "$VSCODE_CLI" \
+      --user-data-dir "$USER_DATA_DIR" \
+      --extensions-dir "$EXTENSIONS_DIR" \
+      --profile "$PROFILE" \
+      --list-extensions --show-versions > "$TEMP_FILE"
+
+    BASELINE_FILES=("$BASE_EXTENSION_ROOT/global.txt")
+    if [[ -n "$LANGUAGE" && -n "$CONTEXT_NAME" ]]; then
+      BASELINE_FILES+=("$BASE_EXTENSION_ROOT/$LANGUAGE.txt")
+      BASELINE_FILES+=("$BASE_EXTENSION_ROOT/$CONTEXT_NAME/global.txt")
+    fi
+    for file in "${BASELINE_FILES[@]}"; do
+      if [[ -f "$file" ]]; then
+        awk -F@ '/^[[:space:]]*($|#)/ { next } NF >= 2 { print $1 "@" $2 }' "$file" >> "$BASELINE_FILE"
+      fi
+    done
+    sort -f -u "$BASELINE_FILE" -o "$BASELINE_FILE"
+
+    {
+      printf '# VS Code extension ID@version inventory; no extension packages are stored.\n'
+      printf '# Native profile: %s\n' "$PROFILE"
+      awk '/^[[:space:]]*($|#)/ { next } NF >= 2 { print }' "$TEMP_FILE" \
+        | sort -f -u | comm -23 - "$BASELINE_FILE"
+    } > "$DESTINATION"
+    printf 'Wrote %s\n' "$DESTINATION"
+    ;;
+esac

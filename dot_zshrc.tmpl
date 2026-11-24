@@ -17,7 +17,9 @@ if [[ "${AI_MODE_TTY:-}" != "${TTY:-}" ]]; then
   export AI_MODE_TTY="${TTY:-}"
 fi
 
-if command -v code >/dev/null; then
+if [[ -x "$HOME/bin/dots-vscode" ]]; then
+  export EDITOR="$HOME/bin/dots-vscode"
+elif command -v code >/dev/null; then
   export EDITOR="code"
 elif command -v nvim >/dev/null; then
   export EDITOR="nvim"
@@ -175,6 +177,13 @@ alias dots-diff='chezmoi diff'
 alias dots-edit='chezmoi edit'
 alias dots-work='dots-work'
 alias dots-allow='direnv allow'
+
+# VS Code follows the active personal/work dotfiles profile. Language aliases
+# use isolated native profiles inside that persona's separate user-data directory.
+alias code='dots-vscode'
+alias code-go='dots-vscode launch --language go'
+alias code-python='dots-vscode launch --language python'
+alias code-typescript='dots-vscode launch --language typescript'
 
 # =============================================================================
 # FZF

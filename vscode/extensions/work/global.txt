@@ -1,0 +1,3 @@
+# VS Code extension ID@version inventory; no extension packages are stored.
+# Populate on the work Mac after configuring the work VS Code profile:
+# dots-vscode capture

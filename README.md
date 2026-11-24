@@ -111,6 +111,13 @@ These are reference exports only.
 
 See [apps/README.md](apps/README.md).
 
+## Visual Studio Code
+
+The `code` command follows the active `personal` or `work` dotfiles profile.
+Use `code-go`, `code-python`, or `code-typescript` for a language-specific VS
+Code profile. Each persona has a separate user-data directory and extension
+directory; see [docs/VSCODE.md](docs/VSCODE.md) for Settings Sync and backup.
+
 ## Homebrew
 
 Homebrew state is declarative and Brewfile-driven.
@@ -228,6 +235,9 @@ dots-brew cleanup --dry-run
 dots-brew status
 dots-brew audit --missing
 ```
+
+For VS Code profiles and versioned extension inventories, see
+[docs/VSCODE.md](docs/VSCODE.md).
 
 When you intentionally want package upgrades, run `dots-brew update` separately.
 

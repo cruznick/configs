@@ -1,0 +1,2 @@
+# VS Code extension ID@version inventory; no extension packages are stored.
+golang.go@0.56.1

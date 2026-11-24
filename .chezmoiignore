@@ -30,6 +30,10 @@ companies/
 profiles/**
 profiles/
 
+# VS Code extension inventories are read directly from the source repo.
+vscode/**
+vscode/
+
 # Personal identity envrc examples — reference only, not deployed
 personal/**
 personal/

@@ -1,0 +1,2 @@
+# VS Code extension ID@version inventory; no extension packages are stored.
+# Add freelance-only requirements here; personal/global.txt is inherited.

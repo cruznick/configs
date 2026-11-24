@@ -23,8 +23,10 @@ dots-snapshot verify ~/Backups/current-state-2026-11
 
 Includes shell/Git/SSH settings, work-context configuration, cloud configuration,
 Claude/Codex settings and skills, editor settings, selected app settings and an
-installed-software inventory. Current Bartender, iStat Menus, Rectangle Pro, eqMac
-and Stream Deck preferences are exported, with installed app versions recorded.
+installed-software inventory. Persona-isolated VS Code settings and native profile
+files are captured without extension packages, global storage, or workspace storage.
+Current Bartender, iStat Menus, Rectangle Pro, eqMac and Stream Deck preferences
+are exported, with installed app versions recorded.
 
 Excludes repositories by default, agent session history, caches, dependencies,
 browser profiles, Keychain, app binaries, iStat history and Raycast clipboard/AI

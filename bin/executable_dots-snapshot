@@ -61,6 +61,7 @@ GENERATED_DIRS = {
     ".Trash", "Cache", "Caches", "cache", "CachedData", "Code Cache",
     "GPUCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache",
     "Crashpad", "tmp", ".tmp", "logs", "thread-writer-locks",
+    "globalStorage", "workspaceStorage",
     "app-server-control", "tui-thread-reference-capabilities",
 }
 
@@ -104,6 +105,18 @@ def create(root, home, repos=()):
     home = home.expanduser().resolve()
     # Never recurse into the snapshot while copying a selected source.
     selections = HOME_ITEMS + ["Library/Application Support/" + n for n in APP_SUPPORT]
+    # Capture only durable files from persona-isolated VS Code profiles. Never
+    # recurse into globalStorage/workspaceStorage or the sibling extensions dir.
+    code_root = home / "Library/Application Support/Code-dotfiles"
+    if code_root.is_dir():
+        for persona_root in sorted(code_root.iterdir()):
+            user_root = persona_root / "User"
+            if not user_root.is_dir():
+                continue
+            for relative in ("settings.json", "keybindings.json", "snippets", "profiles"):
+                source = user_root / relative
+                if source.exists() or source.is_symlink():
+                    selections.append(str(source.relative_to(home)))
     # Apple service preferences include protected address-book/identity databases.
     # Capture third-party app preferences plus global UI preferences only.
     preferences = home / "Library/Preferences"
