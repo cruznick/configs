@@ -27,5 +27,6 @@ brew "hadolint"
 brew "trivy"
 
 cask "gcloud-cli"
+cask "coderabbit"
 cask "ghostty"
 cask "session-manager-plugin"

@@ -65,7 +65,7 @@ claude() {
       AWS_PROFILE=platform \
       AWS_REGION=us-west-2 \
       AWS_DEFAULT_REGION=us-west-2 \
-      ANTHROPIC_MODEL=sonnet \
+      ANTHROPIC_MODEL=us.anthropic.claude-fable-5-2 \
       ANTHROPIC_DEFAULT_OPUS_MODEL=us.anthropic.claude-opus-5-5 \
       "$binary" "$@"
   else

@@ -13,10 +13,11 @@ ai-mode bedrock claude   # switch only Claude
 ai-mode login codex      # switch only Codex
 ```
 
-Each new terminal starts in login mode. In Bedrock mode, Claude receives its
-AWS and model environment only when launched; Codex receives config overrides
-only on its command line. Existing global tool settings remain untouched. Run
-AWS SSO login when prompted:
+Each new terminal starts in login mode. In Bedrock mode, Claude uses the
+`us.anthropic.claude-fable-5-2` inference profile and receives its AWS and model
+environment only when launched; Codex receives config overrides only on its
+command line. Existing global tool settings remain untouched. Run AWS SSO login
+when prompted:
 
 ```zsh
 aws sso login --profile platform
