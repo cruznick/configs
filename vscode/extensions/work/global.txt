@@ -1,3 +1,21 @@
 # VS Code extension ID@version inventory; no extension packages are stored.
-# Populate on the work Mac after configuring the work VS Code profile:
-# dots-vscode capture
+# Starting baseline copied from this Mac's Stable personal inventory on 2026-11-23.
+# Review on the work Mac before installing; these are requirements, not binaries.
+arthurlobo.easy-codesnap@1.37.5
+bierner.markdown-mermaid@1.32.1
+bpruitt-goddard.mermaid-markdown-syntax-highlighting@1.8.1
+eamodio.gitlens@19.0.1
+esbenp.prettier-vscode@12.4.0
+janisdd.vscode-edit-csv@0.11.9
+mermaidchart.vscode-mermaid-chart@2.7.6
+monokai.theme-monokai-pro-vscode@2.0.14
+ms-azuretools.vscode-containers@2.5.0
+ms-vscode.makefile-tools@0.12.17
+ms-vscode-remote.remote-containers@0.466.0
+openai.chatgpt@26.825.32147
+pkief.material-icon-theme@5.38.1
+tamasfe.even-better-toml@0.21.2
+trybick.terminal-zoom@2.1.1
+vstirbu.vscode-mermaid-preview@2.1.2
+wholroyd.jinja@0.0.8
+wraith13.zoombar-vscode@1.4.4

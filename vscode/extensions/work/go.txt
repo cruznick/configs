@@ -1,0 +1,3 @@
+# VS Code extension ID@version inventory; no extension packages are stored.
+# Starting baseline copied from this Mac's Stable personal inventory on 2026-11-23.
+golang.go@0.56.1

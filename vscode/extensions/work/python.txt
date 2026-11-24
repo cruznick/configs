@@ -1,0 +1,11 @@
+# VS Code extension ID@version inventory; no extension packages are stored.
+# Starting baseline copied from this Mac's Stable personal inventory on 2026-11-23.
+batisteo.vscode-django@1.15.0
+donjayamanne.python-environment-manager@1.2.7
+donjayamanne.python-extension-pack@1.7.0
+kevinrose.vsc-python-indent@1.21.1
+ms-python.debugpy@2026.6.0
+ms-python.python@2026.4.0
+ms-python.vscode-python-envs@1.36.0
+ms-python.vscode-pylance@2026.3.1
+njpwerner.autodocstring@0.6.1

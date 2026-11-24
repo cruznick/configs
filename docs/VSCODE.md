@@ -65,6 +65,8 @@ resulting file before committing. The current personal inventory is a baseline
 from this Mac's Stable VS Code installation; update it after confirming the
 profiles you want to keep. Context-specific extension lists live under the
 persona directory, such as `vscode/extensions/personal/freelance/`.
+The initial work global and language lists are copied from this inventory as a
+starting point; review them on the work Mac before installing or revising them.
 
 ## Backup
 
