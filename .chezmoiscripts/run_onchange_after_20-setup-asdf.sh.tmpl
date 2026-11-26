@@ -51,8 +51,8 @@ if ! asdf install; then
   exit 0
 fi
 
-# Node: enable corepack
-command -v corepack >/dev/null && corepack enable || true
+# Corepack stopped shipping with Node.js 25+. Package managers such as pnpm
+# are managed separately through Homebrew rather than a Node-provided shim.
 if ! asdf reshim; then
   warn "asdf reshim failed; retry after resolving the error"
   exit 0

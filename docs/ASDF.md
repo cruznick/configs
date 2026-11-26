@@ -5,18 +5,20 @@ Terraform, kubectl, and Helm. Homebrew installs the asdf executable through the
 dev Brewfile group. This configuration supports asdf 0.16 and later; the old
 `asdf.sh` shell initializer is no longer used.
 
-All six repo selections are concrete versions. Node is pinned to `24.22.1` and
-Python to `3.12.16`, instead of moving selectors such as `lts` or `latest`.
-Future upgrades are deliberate edits to `dot_tool-versions`.
+All six repo selections are concrete versions. Node is pinned to the current
+LTS release, `26.13.1`; Python, Go, Terraform, kubectl, and Helm use their
+current stable releases in `dot_tool-versions`. Future upgrades are deliberate
+edits to that file.
 An existing `lts` installation may need the exact-version install on next apply;
 old installs are not automatically removed.
 
 ## Synchronization
 
 On macOS, `.chezmoiscripts/run_onchange_after_20-setup-asdf.sh.tmpl` runs after chezmoi
-deploys files. It adds missing plugins, installs the home `.tool-versions`, enables
-corepack when available, and refreshes shims. It always runs from the home
-directory, even if `chezmoi apply` was invoked inside another project.
+deploys files. It adds missing plugins, installs the home `.tool-versions`, and
+refreshes shims. It always runs from the home directory, even if `chezmoi apply`
+was invoked inside another project. Node.js 25 and later do not bundle Corepack;
+package managers such as pnpm are installed separately through Homebrew.
 
 The hook's rendered content includes the checksum of `dot_tool-versions`.
 Changing that file therefore triggers installation on the next full apply. The
